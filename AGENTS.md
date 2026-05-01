@@ -76,3 +76,43 @@ uv add fastapi uvicorn           # Add web framework
 - ~22k messages across ~980 sessions, ~9 projects
 - Token data covers Feb-May 2026
 - Free-tier models show `cost: 0` — cost field may be sparse
+
+## WINDOWS CAVEATS
+
+### Port Binding (WSAEACCES 10013)
+
+Windows automatically reserves TCP port ranges for Hyper-V / WSL2 / Docker NAT **even when no process is listening**. Port 8000 is commonly caught in the 7954–8053 range.
+
+```powershell
+# Check excluded port ranges
+netsh int ipv4 show excludedportrange protocol=tcp
+
+# Result may show:
+#   Start Port    End Port
+#   ----------    --------
+#   7954          8053     ← 8000 falls here!
+#   8054          8153     ← 8080 falls here!
+```
+
+**Workaround**: Use a port outside all excluded ranges (e.g., 8888, 20230, or any port in 50060–59099). Provide a `--port` CLI flag so users can easily switch.
+
+**Port priority** (implemented in `app/main.py`):
+1. `--port` CLI argument
+2. `PORT` environment variable
+3. Hard-coded default (20230)
+
+### Orphaned Server Processes
+
+`Start-Process` in PowerShell launches a background process that **survives the PowerShell session**. Multiple test runs can leave orphaned `python -m app.main` processes holding ports.
+
+```powershell
+# Find orphaned server processes
+Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
+  Where-Object { $_.CommandLine -match "-m app.main" } |
+  Stop-Process -Force
+
+# Verify port is released
+netstat -ano | findstr ":<port>"
+```
+
+**Prevention**: Always kill test server processes explicitly after verification. Use `Get-CimInstance` (not `Get-Process`) to inspect `CommandLine` and distinguish server processes from other Python processes.
