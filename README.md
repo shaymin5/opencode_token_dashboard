@@ -49,7 +49,14 @@ uv sync --extra dev
 uv run python -m app.main
 ```
 
-默认监听 `http://127.0.0.1:8000`，可通过环境变量 `PORT` 修改端口：
+默认监听 `http://127.0.0.1:20230`。可通过以下方式修改端口：
+
+- **CLI 参数**：`uv run python -m app.main --port 9999`
+- **环境变量**：`$env:PORT = "9999"; uv run python -m app.main`
+
+优先级：CLI 参数 > 环境变量 > 默认值。
+
+> **Windows 注意**：系统可能自动保留部分端口范围（`netsh int ipv4 show excludedportrange protocol=tcp`），如遇 `WSAEACCES` 错误请更换端口。
 
 ```bash
 # Windows PowerShell
