@@ -67,6 +67,11 @@ def _resolve_port() -> int:
     return int(os.environ.get("PORT", "20230"))
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Entry point for ``uv run dashboard`` and ``python -m app.main``."""
     port = _resolve_port()
     uvicorn.run("app.main:app", host="127.0.0.1", port=port)
+
+
+if __name__ == "__main__":
+    main()
