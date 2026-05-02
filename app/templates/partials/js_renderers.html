@@ -274,7 +274,7 @@ var DASHBOARD = window.DASHBOARD || {};
       grid: { left: 12, right: 24, top: 40, bottom: 12, containLabel: true },
       xAxis: { type: 'category', data: dates, axisLine: {lineStyle:{color:'#30363d'}}, axisLabel: {color:'#8b949e', fontSize:10} },
       yAxis: [
-        { type: 'value', name: 'Ratio', axisLine: {show:false}, splitLine: {lineStyle:{color:'#21262d'}}, axisLabel: {color:'#8b949e', fontSize:10, formatter: function(v) { return (v*100).toFixed(0) + '%'; }} },
+        { type: 'value', name: 'Ratio', min: 0, max: 1, axisLine: {show:false}, splitLine: {lineStyle:{color:'#21262d'}}, axisLabel: {color:'#8b949e', fontSize:10, formatter: function(v) { return (v*100).toFixed(0) + '%'; }} },
         { type: 'value', name: 'Tokens', axisLine: {show:false}, splitLine: {show:false}, axisLabel: {color:'#8b949e', fontSize:10, formatter: fmtAxis} }
       ],
       series: [
