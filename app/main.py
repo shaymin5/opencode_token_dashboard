@@ -18,6 +18,7 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI
+from starlette.staticfiles import StaticFiles
 
 from app.db import get_db_path
 from app.routes import router
@@ -45,6 +46,7 @@ async def lifespan(app: FastAPI):
 # ---------------------------------------------------------------------------
 
 app = FastAPI(title="OpenCode Token Dashboard", lifespan=lifespan)
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.include_router(router)
 
 
