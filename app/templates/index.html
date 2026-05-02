@@ -61,6 +61,9 @@ body {
 
 /* ── HEADER ── */
 .header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
   border-bottom: 1px solid var(--border-subtle);
   padding: var(--space-lg) var(--space-xl);
   background: var(--bg-layer);
@@ -142,6 +145,99 @@ body {
   background: var(--accent-blue);
   color: #0d1117;
   font-weight: 600;
+}
+
+/* ── TIME RANGE BAR ── */
+.header-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-sm);
+}
+
+.time-range-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.range-presets {
+  display: flex;
+  gap: 1px;
+  background: var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.range-presets button {
+  background: var(--bg-elevated);
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+  letter-spacing: 0.03em;
+  line-height: 1;
+}
+
+.range-presets button:hover {
+  color: var(--text-primary);
+  background: var(--bg-layer);
+}
+
+.range-presets button.active {
+  background: var(--accent-blue);
+  color: #0d1117;
+  font-weight: 600;
+}
+
+.range-separator {
+  width: 1px;
+  height: 24px;
+  background: var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.date-input-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.date-input-group label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.date-input-group input[type="date"] {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  padding: 4px 6px;
+  color-scheme: dark;
+  outline: none;
+  transition: border-color var(--transition-fast);
+  width: 130px;
+}
+
+.date-input-group input[type="date"]:focus {
+  border-color: var(--accent-blue);
+}
+
+.date-input-group input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+  cursor: pointer;
 }
 
 /* ── MAIN CONTENT ── */
@@ -262,6 +358,10 @@ body {
   height: 360px;
 }
 
+.chart-container.mini {
+  height: 150px;
+}
+
 .chart-inner {
   width: 100%;
   height: 100%;
@@ -272,6 +372,14 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-md);
+}
+
+/* ── PANEL GRID ── */
+.panel-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
 }
 
 /* ── LOADING / ERROR STATES ── */
@@ -314,12 +422,26 @@ body {
   100% { content: ''; }
 }
 
+/* ── EFFICIENCY CARDS ── */
+.efficiency-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
 /* ── RESPONSIVE ── */
 @media (max-width: 1200px) {
   .overview-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .efficiency-grid {
+    grid-template-columns: repeat(3, 1fr);
   }
   .two-col {
+    grid-template-columns: 1fr;
+  }
+  .panel-grid {
     grid-template-columns: 1fr;
   }
   .chart-container.half {
@@ -335,7 +457,19 @@ body {
   .granularity-toggle {
     align-self: flex-start;
   }
+  .header-controls {
+    align-items: stretch;
+  }
+  .time-range-bar {
+    justify-content: flex-start;
+  }
+  .date-input-group input[type="date"] {
+    width: 120px;
+  }
   .overview-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .efficiency-grid {
     grid-template-columns: 1fr;
   }
   .main {
@@ -367,10 +501,29 @@ body {
         <span id="refresh-time">Initializing...</span>
       </div>
     </div>
-    <div class="granularity-toggle" id="granularity-toggle">
-      <button data-granularity="day" class="active">Day</button>
-      <button data-granularity="week">Week</button>
-      <button data-granularity="month">Month</button>
+    <div class="header-controls">
+      <div class="granularity-toggle" id="granularity-toggle">
+        <button data-granularity="day" class="active">Day</button>
+        <button data-granularity="week">Week</button>
+        <button data-granularity="month">Month</button>
+      </div>
+      <div class="time-range-bar" id="time-range-bar">
+        <div class="range-presets" id="range-presets">
+          <button data-range="7d">7D</button>
+          <button data-range="30d">30D</button>
+          <button data-range="90d">90D</button>
+          <button data-range="all" class="active">All</button>
+        </div>
+        <div class="range-separator"></div>
+        <div class="date-input-group">
+          <label for="start-date">From</label>
+          <input type="date" id="start-date">
+        </div>
+        <div class="date-input-group">
+          <label for="end-date">To</label>
+          <input type="date" id="end-date">
+        </div>
+      </div>
     </div>
   </div>
 </header>
@@ -402,68 +555,123 @@ body {
     </div>
   </section>
 
-  <!-- ── TIME-SERIES CHART ── -->
-  <section class="section">
-    <div class="section-header">
-      <h2 class="section-title">Token Usage Over Time</h2>
+  <!-- ── EFFICIENCY MINI CARDS ── -->
+  <section class="efficiency-grid" id="efficiency-cards">
+    <div class="card" id="card-cost-per-1k">
+      <div class="card-icon">Avg Cost / 1K Tokens</div>
+      <div class="card-value">--</div>
+      <div class="card-label">weighted by model usage</div>
     </div>
-    <div class="chart-container full" id="time-series-container">
-      <div class="chart-overlay" id="time-series-loading">
-        <span class="message">Loading<span class="loading-dots"></span></span>
-      </div>
-      <div class="chart-overlay hidden" id="time-series-error">
-        <span class="message error">Error loading data</span>
-      </div>
-      <div class="chart-inner" id="time-series-chart"></div>
+    <div class="card" id="card-cache-rate">
+      <div class="card-icon">Cache Hit Rate</div>
+      <div class="card-value">--</div>
+      <div class="card-label">cache_read / (cache_read + input)</div>
+    </div>
+    <div class="card" id="card-top-agent">
+      <div class="card-icon">Top Agent</div>
+      <div class="card-value">--</div>
+      <div class="card-label">by total tokens</div>
     </div>
   </section>
 
-  <!-- ── MODEL + PROJECT BREAKDOWN ── -->
-  <div class="two-col">
+  <!-- ── PANEL GRID ── -->
+  <div class="panel-grid" id="panel-grid">
+
+    <!-- Heatmap -->
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Usage Heatmap (UTC)</h2>
+      </div>
+      <div class="chart-container half" id="heatmap-container">
+        <div class="chart-overlay" id="heatmap-loading"><span class="message">Loading<span class="loading-dots"></span></span></div>
+        <div class="chart-overlay hidden" id="heatmap-error"><span class="message error">Error loading data</span></div>
+        <div class="chart-inner" id="heatmap-chart"></div>
+      </div>
+    </section>
+
+    <!-- Top Sessions -->
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Top Sessions</h2>
+      </div>
+      <div class="chart-container half" id="top-sessions-container">
+        <div class="chart-overlay" id="top-sessions-loading"><span class="message">Loading<span class="loading-dots"></span></span></div>
+        <div class="chart-overlay hidden" id="top-sessions-error"><span class="message error">Error loading data</span></div>
+        <div class="chart-inner" id="top-sessions-chart"></div>
+      </div>
+    </section>
+
+    <!-- By Model -->
     <section class="section">
       <div class="section-header">
         <h2 class="section-title">By Model</h2>
       </div>
       <div class="chart-container half" id="model-container">
-        <div class="chart-overlay" id="model-loading">
-          <span class="message">Loading<span class="loading-dots"></span></span>
-        </div>
-        <div class="chart-overlay hidden" id="model-error">
-          <span class="message error">Error loading data</span>
-        </div>
+        <div class="chart-overlay" id="model-loading"><span class="message">Loading<span class="loading-dots"></span></span></div>
+        <div class="chart-overlay hidden" id="model-error"><span class="message error">Error loading data</span></div>
         <div class="chart-inner" id="model-chart"></div>
       </div>
     </section>
 
+    <!-- By Project -->
     <section class="section">
       <div class="section-header">
         <h2 class="section-title">By Project</h2>
       </div>
       <div class="chart-container half" id="project-container">
-        <div class="chart-overlay" id="project-loading">
-          <span class="message">Loading<span class="loading-dots"></span></span>
-        </div>
-        <div class="chart-overlay hidden" id="project-error">
-          <span class="message error">Error loading data</span>
-        </div>
+        <div class="chart-overlay" id="project-loading"><span class="message">Loading<span class="loading-dots"></span></span></div>
+        <div class="chart-overlay hidden" id="project-error"><span class="message error">Error loading data</span></div>
         <div class="chart-inner" id="project-chart"></div>
       </div>
     </section>
+
+    <!-- By Agent -->
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">By Agent</h2>
+      </div>
+      <div class="chart-container half" id="agent-container">
+        <div class="chart-overlay" id="agent-loading"><span class="message">Loading<span class="loading-dots"></span></span></div>
+        <div class="chart-overlay hidden" id="agent-error"><span class="message error">Error loading data</span></div>
+        <div class="chart-inner" id="agent-chart"></div>
+      </div>
+    </section>
+
+    <!-- Cost Breakdown -->
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Cost Breakdown</h2>
+      </div>
+      <div class="chart-container half" id="cost-container">
+        <div class="chart-overlay" id="cost-loading"><span class="message">Loading<span class="loading-dots"></span></span></div>
+        <div class="chart-overlay hidden" id="cost-error"><span class="message error">Error loading data</span></div>
+        <div class="chart-inner" id="cost-chart"></div>
+      </div>
+    </section>
+
+    <!-- Cache Efficiency -->
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Cache Efficiency</h2>
+      </div>
+      <div class="chart-container half" id="cache-container">
+        <div class="chart-overlay" id="cache-loading"><span class="message">Loading<span class="loading-dots"></span></span></div>
+        <div class="chart-overlay hidden" id="cache-error"><span class="message error">Error loading data</span></div>
+        <div class="chart-inner" id="cache-chart"></div>
+      </div>
+    </section>
+
   </div>
 
-  <!-- ── COST BREAKDOWN ── -->
+  <!-- ── MINI TIME-SERIES ── -->
   <section class="section">
     <div class="section-header">
-      <h2 class="section-title">Cost Breakdown</h2>
+      <h2 class="section-title">Token Usage Over Time</h2>
     </div>
-    <div class="chart-container half" id="cost-container" style="height: 380px;">
-      <div class="chart-overlay" id="cost-loading">
-        <span class="message">Loading<span class="loading-dots"></span></span>
-      </div>
-      <div class="chart-overlay hidden" id="cost-error">
-        <span class="message error">Error loading data</span>
-      </div>
-      <div class="chart-inner" id="cost-chart"></div>
+    <div class="chart-container mini" id="mini-ts-container">
+      <div class="chart-overlay" id="mini-ts-loading"><span class="message">Loading<span class="loading-dots"></span></span></div>
+      <div class="chart-overlay hidden" id="mini-ts-error"><span class="message error">Error loading data</span></div>
+      <div class="chart-inner" id="mini-ts-chart"></div>
     </div>
   </section>
 
@@ -498,9 +706,35 @@ body {
 
   function el(id) { return document.getElementById(id); }
 
+  /* ─── DATE HELPERS ─── */
+  function toISODate(date) {
+    var y = date.getFullYear();
+    var m = String(date.getMonth() + 1).padStart(2, '0');
+    var d = String(date.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + d;
+  }
+
+  function daysAgo(n) {
+    var d = new Date();
+    d.setDate(d.getDate() - n);
+    return d;
+  }
+
+  function buildQueryString(basePath, params) {
+    if (!params) return basePath;
+    var parts = [];
+    for (var k in params) {
+      if (Object.prototype.hasOwnProperty.call(params, k) && params[k] != null && params[k] !== '') {
+        parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
+      }
+    }
+    return parts.length ? basePath + '?' + parts.join('&') : basePath;
+  }
+
   /* ─── API ─── */
-  function apiFetch(path) {
-    return fetch(path).then(function(r) {
+  function apiFetch(path, params) {
+    var url = buildQueryString(path, params);
+    return fetch(url).then(function(r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     });
@@ -560,16 +794,32 @@ body {
   }
 
   /* ─── INIT ALL CHARTS ─── */
-  var tsChart  = initChart('time-series-chart', 'time-series-container', 'time-series-loading', 'time-series-error');
-  var mdlChart = initChart('model-chart', 'model-container', 'model-loading', 'model-error');
-  var prjChart = initChart('project-chart', 'project-container', 'project-loading', 'project-error');
-  var cstChart = initChart('cost-chart', 'cost-container', 'cost-loading', 'cost-error');
+  var chartDefs = [
+    {dom: 'heatmap-chart', container: 'heatmap-container', loading: 'heatmap-loading', error: 'heatmap-error'},
+    {dom: 'top-sessions-chart', container: 'top-sessions-container', loading: 'top-sessions-loading', error: 'top-sessions-error'},
+    {dom: 'model-chart', container: 'model-container', loading: 'model-loading', error: 'model-error'},
+    {dom: 'project-chart', container: 'project-container', loading: 'project-loading', error: 'project-error'},
+    {dom: 'agent-chart', container: 'agent-container', loading: 'agent-loading', error: 'agent-error'},
+    {dom: 'cost-chart', container: 'cost-container', loading: 'cost-loading', error: 'cost-error'},
+    {dom: 'cache-chart', container: 'cache-container', loading: 'cache-loading', error: 'cache-error'},
+    {dom: 'mini-ts-chart', container: 'mini-ts-container', loading: 'mini-ts-loading', error: 'mini-ts-error'},
+  ];
 
-  var allCharts = [tsChart, mdlChart, prjChart, cstChart].filter(Boolean);
+  chartDefs.forEach(function(def) {
+    var c = initChart(def.dom, def.container, def.loading, def.error);
+    if (c) charts[def.dom] = c;
+  });
+
+  // Convenience aliases for existing render functions
+  var mdlChart = charts['model-chart'];
+  var prjChart = charts['project-chart'];
+  var cstChart = charts['cost-chart'];
+
+  var allCharts = Object.keys(charts).map(function(k) { return charts[k]; }).filter(Boolean);
 
   /* ─── 1. OVERVIEW ─── */
-  function loadOverview() {
-    apiFetch('/api/overview').then(function(data) {
+  function loadOverview(dp) {
+    apiFetch('/api/data', Object.assign({view: 'overview'}, dp || {})).then(function(data) {
       el('card-tokens').querySelector('.card-value').textContent = fmtNum(data.total_tokens);
       el('card-cost').querySelector('.card-value').textContent = fmtCost(data.total_cost);
       el('card-sessions').querySelector('.card-value').textContent = fmtNum(data.total_sessions);
@@ -595,87 +845,7 @@ body {
     });
   }
 
-  /* ─── 2. TIME-SERIES CHART ─── */
-  function renderTimeSeries(data) {
-    if (!tsChart) return;
-
-    var dates = data.map(function(d) { return d.date; });
-    var series = [
-      { name: 'Input',       key: 'input',       color: '#58a6ff', stack: 'tokens' },
-      { name: 'Output',      key: 'output',      color: '#3fb950', stack: 'tokens' },
-      { name: 'Reasoning',   key: 'reasoning',   color: '#bc8cff', stack: 'tokens' },
-      { name: 'Cache Read',  key: 'cache_read',  color: '#d2991d', stack: 'tokens' },
-      { name: 'Cache Write', key: 'cache_write', color: '#768390', stack: 'tokens' }
-    ];
-
-    var option = baseOption({
-      legend: {
-        data: series.map(function(s) { return s.name; }),
-        top: 0,
-        left: 0,
-        textStyle: { color: '#8b949e', fontSize: 11, fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif' },
-        itemWidth: 12,
-        itemHeight: 12,
-        itemGap: 20
-      },
-      grid: { left: 12, right: 24, top: 48, bottom: 12, containLabel: true },
-      xAxis: {
-        type: 'category',
-        data: dates,
-        axisLine: { lineStyle: { color: '#30363d' } },
-        axisTick: { show: false },
-        axisLabel: { color: '#8b949e', fontSize: 10, fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif' },
-        splitLine: { show: false }
-      },
-      yAxis: {
-        type: 'value',
-        axisLine: { show: false },
-        axisTick: { show: false },
-        splitLine: { lineStyle: { color: '#21262d' } },
-        axisLabel: {
-          color: '#8b949e',
-          fontSize: 10,
-          fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
-          formatter: fmtAxis
-        }
-      },
-      series: series.map(function(s) {
-        return {
-          name: s.name,
-          type: 'line',
-          stack: s.stack,
-          data: data.map(function(d) { return d[s.key] || 0; }),
-          smooth: true,
-          symbol: 'none',
-          lineStyle: { color: s.color, width: 1.5 },
-          areaStyle: { color: s.color, opacity: 0.35 },
-          emphasis: { focus: 'series' }
-        };
-      }),
-      tooltip: {
-        trigger: 'axis',
-        valueFormatter: function(value) { return fmtNum(value) + ' tokens'; }
-      }
-    });
-
-    tsChart.setOption(option, true);
-  }
-
-  function loadTimeSeries(granularity) {
-    if (!tsChart) return;
-    showOverlay(tsChart, 'loading');
-    apiFetch('/api/tokens-by-date?granularity=' + (granularity || 'day'))
-      .then(function(data) {
-        hideOverlays(tsChart);
-        renderTimeSeries(data);
-      })
-      .catch(function(err) {
-        console.error('Time-series fetch failed:', err);
-        showOverlay(tsChart, 'error');
-      });
-  }
-
-  /* ─── 3. MODEL BREAKDOWN ─── */
+  /* ─── 2. MODEL BREAKDOWN ─── */
   function renderModelBreakdown(data) {
     if (!mdlChart) return;
     if (!Array.isArray(data) || data.length === 0) {
@@ -929,36 +1099,289 @@ body {
     cstChart.setOption(option, true);
   }
 
+  /* ─── 6. CACHE EFFICIENCY ─── */
+  function renderCacheEfficiency(data) {
+    var chart = charts['cache-chart'];
+    if (!chart || !data || !data.length) return;
+
+    var dates = data.map(function(d) { return d.date; });
+    var option = baseOption({
+      legend: { data: ['Cache Hit Ratio', 'Cache Read', 'Input'], top: 0, left: 0, textStyle: {color:'#8b949e', fontSize:11} },
+      grid: { left: 12, right: 24, top: 40, bottom: 12, containLabel: true },
+      xAxis: { type: 'category', data: dates, axisLine: {lineStyle:{color:'#30363d'}}, axisLabel: {color:'#8b949e', fontSize:10} },
+      yAxis: [
+        { type: 'value', name: 'Ratio', axisLine: {show:false}, splitLine: {lineStyle:{color:'#21262d'}}, axisLabel: {color:'#8b949e', fontSize:10, formatter: function(v) { return (v*100).toFixed(0) + '%'; }} },
+        { type: 'value', name: 'Tokens', axisLine: {show:false}, splitLine: {show:false}, axisLabel: {color:'#8b949e', fontSize:10, formatter: fmtAxis} }
+      ],
+      series: [
+        { name: 'Cache Hit Ratio', type: 'line', data: data.map(function(d) { return d.cache_hit_ratio; }), smooth: true, symbol: 'none', lineStyle: {color:'#3fb950', width:2}, yAxisIndex: 0 },
+        { name: 'Cache Read', type: 'line', data: data.map(function(d) { return d.cache_read; }), smooth: true, symbol: 'none', lineStyle: {color:'#58a6ff', width:1.5}, yAxisIndex: 1 },
+        { name: 'Input', type: 'line', data: data.map(function(d) { return d.input; }), smooth: true, symbol: 'none', lineStyle: {color:'#d2991d', width:1.5}, yAxisIndex: 1 }
+      ]
+    });
+    chart.setOption(option, true);
+  }
+
+  /* ─── 7. AGENT BREAKDOWN ─── */
+  function renderAgentBreakdown(data) {
+    var chart = charts['agent-chart'];
+    if (!chart || !data || !data.length) { showOverlay(chart, 'error'); return; }
+
+    data.sort(function(a,b) { return a.total_tokens - b.total_tokens; });
+    var agentPalette = ['#58a6ff','#3fb950','#bc8cff','#db6d28','#39d2c0','#db61a2','#f0883e','#768390','#9198a1','#4c9aff'];
+    var option = baseOption({
+      grid: { left: 12, right: 24, top: 12, bottom: 12, containLabel: true },
+      xAxis: { type: 'value', axisLine: {show:false}, splitLine: {lineStyle:{color:'#21262d'}}, axisLabel: {color:'#8b949e', fontSize:10, formatter: fmtAxis} },
+      yAxis: { type: 'category', data: data.map(function(d) { return d.agent; }), inverse: true, axisLine: {show:false}, axisLabel: {color:'#e6edf3', fontSize:10, width: 70, overflow: 'truncate'} },
+      series: [{
+        type: 'bar',
+        data: data.map(function(d, i) {
+          return {
+            value: d.total_tokens,
+            itemStyle: { color: agentPalette[i % agentPalette.length], borderRadius: [0, 3, 3, 0] },
+            _raw: d
+          };
+        }),
+        barMaxWidth: 18,
+        label: { show: true, position: 'right', color: '#8b949e', fontSize: 10, formatter: function(p) { return fmtNum(p.value); } }
+      }],
+      tooltip: {
+        trigger: 'axis', axisPointer: { type: 'shadow' },
+        formatter: function(params) {
+          var d = params[0].data._raw;
+          return [
+            '<span style="font-weight:600;color:#e6edf3">' + d.agent + '</span>',
+            'Input:      ' + fmtNum(d.input || 0),
+            'Output:     ' + fmtNum(d.output || 0),
+            'Reasoning:  ' + fmtNum(d.reasoning || 0),
+            'Cache Read: ' + fmtNum(d.cache_read || 0),
+            'Messages:   ' + fmtNum(d.message_count || 0)
+          ].join('<br/>');
+        }
+      },
+      legend: { show: false }
+    });
+    chart.setOption(option, true);
+  }
+
+  /* ─── 8. USAGE HEATMAP ─── */
+  function renderUsageHeatmap(data) {
+    var chart = charts['heatmap-chart'];
+    if (!chart || !data || !data.length) { showOverlay(chart, 'error'); return; }
+
+    var hours = Array.from({length: 24}, function(_, i) { return String(i).padStart(2, '0') + ':00'; });
+    var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    var maxVal = 0;
+    var heatmapData = [];
+
+    // Build lookup from flat data
+    var lookup = {};
+    data.forEach(function(r) { lookup[r.day_of_week + '-' + r.hour] = r.total_tokens; });
+
+    for (var d = 0; d < 7; d++) {
+      for (var h = 0; h < 24; h++) {
+        var key = d + '-' + String(h).padStart(2, '0');
+        var val = lookup[key] || 0;
+        heatmapData.push([h, d, val]);
+        if (val > maxVal) maxVal = val;
+      }
+    }
+
+    var option = baseOption({
+      grid: { left: 60, right: 60, top: 12, bottom: 12 },
+      xAxis: { type: 'category', data: hours, splitArea: {show: true}, axisLine: {show:false}, axisLabel: {color:'#8b949e', fontSize:9, interval: 3} },
+      yAxis: { type: 'category', data: days, splitArea: {show: true}, axisLine: {show:false}, axisLabel: {color:'#8b949e', fontSize:10} },
+      visualMap: {
+        min: 0, max: maxVal || 1,
+        calculable: true,
+        orient: 'vertical', right: 0, top: 'center',
+        inRange: { color: ['#0d1117', '#1c2129', '#58a6ff', '#3fb950', '#d2991d', '#f85149'] }
+      },
+      series: [{
+        type: 'heatmap',
+        data: heatmapData,
+        label: { show: false },
+        emphasis: { itemStyle: { borderColor: '#e6edf3', borderWidth: 1 } }
+      }],
+      tooltip: {
+        trigger: 'item',
+        formatter: function(params) {
+          return days[params.value[1]] + ' ' + hours[params.value[0]] + '<br/>' + fmtNum(params.value[2]) + ' tokens';
+        }
+      }
+    });
+    chart.setOption(option, true);
+  }
+
+  /* ─── 9. TOP SESSIONS ─── */
+  function renderTopSessions(data) {
+    var chart = charts['top-sessions-chart'];
+    if (!chart || !data || !data.length) { showOverlay(chart, 'error'); return; }
+
+    data.sort(function(a,b) { return a.total_tokens - b.total_tokens; });
+    var titleMaxLen = 50;
+    var names = data.map(function(d) {
+      var t = d.title || 'Untitled';
+      return t.length > titleMaxLen ? t.substring(0, titleMaxLen) + '...' : t;
+    });
+
+    var option = baseOption({
+      grid: { left: 12, right: 24, top: 12, bottom: 12, containLabel: true },
+      xAxis: { type: 'value', axisLine: {show:false}, splitLine: {lineStyle:{color:'#21262d'}}, axisLabel: {color:'#8b949e', fontSize:10, formatter: fmtAxis} },
+      yAxis: { type: 'category', data: names, inverse: true, axisLine: {show:false}, axisLabel: {color:'#e6edf3', fontSize:10, width: 170, overflow: 'truncate'} },
+      series: [{
+        type: 'bar',
+        data: data.map(function(d) {
+          return {
+            value: d.total_tokens,
+            itemStyle: { color: '#58a6ff', borderRadius: [0, 3, 3, 0] },
+            _raw: d
+          };
+        }),
+        barMaxWidth: 18,
+        label: { show: true, position: 'right', color: '#8b949e', fontSize: 10, formatter: function(p) { return fmtNum(p.value); } }
+      }],
+      tooltip: {
+        trigger: 'axis', axisPointer: { type: 'shadow' },
+        formatter: function(params) {
+          var d = params[0].data._raw;
+          return [
+            '<span style="font-weight:600;color:#e6edf3">' + (d.title || 'Untitled') + '</span>',
+            '<span style="color:#8b949e">' + (d.project || '?') + '</span>',
+            'Tokens:     ' + fmtNum(d.total_tokens),
+            'Cost:       ' + fmtCost(d.total_cost || 0),
+            'Messages:   ' + fmtNum(d.message_count || 0)
+          ].join('<br/>');
+        }
+      },
+      legend: { show: false }
+    });
+    chart.setOption(option, true);
+  }
+
+  /* ─── 10. MINI TIME-SERIES ─── */
+  function renderMiniTimeSeries(data) {
+    var chart = charts['mini-ts-chart'];
+    if (!chart || !data || !data.length) { showOverlay(chart, 'error'); return; }
+
+    var option = baseOption({
+      grid: { left: 12, right: 24, top: 4, bottom: 4, containLabel: true },
+      xAxis: { type: 'category', data: data.map(function(d) { return d.date; }), axisLine: {show:false}, axisTick: {show:false}, axisLabel: {show:false}, splitLine: {show:false} },
+      yAxis: { type: 'value', axisLine: {show:false}, axisTick: {show:false}, splitLine: {show:false}, axisLabel: {show:false} },
+      series: [{
+        type: 'line',
+        data: data.map(function(d) { return d.total; }),
+        smooth: true,
+        symbol: 'none',
+        lineStyle: { color: '#58a6ff', width: 1.5 },
+        areaStyle: { color: '#58a6ff', opacity: 0.15 }
+      }],
+      tooltip: { trigger: 'axis', valueFormatter: function(v) { return fmtNum(v) + ' tokens'; } },
+      legend: { show: false }
+    });
+    chart.setOption(option, true);
+  }
+
+  /* ─── DATE RANGE STATE ─── */
+  var currentStartDate = null;
+  var currentEndDate = null;
+
+  function dateParams() {
+    var p = {};
+    if (currentStartDate) p.start_date = currentStartDate;
+    if (currentEndDate) p.end_date = currentEndDate;
+    return Object.keys(p).length > 0 ? p : null;
+  }
+
   /* ─── LOAD ALL DATA ─── */
-  function loadAllData(granularity) {
-    loadOverview();
+  function loadAllData(granularity, dp) {
+    dp = dp || dateParams();
 
-    if (tsChart) {
-      showOverlay(tsChart, 'loading');
-      apiFetch('/api/tokens-by-date?granularity=' + (granularity || 'day'))
-        .then(function(data) { hideOverlays(tsChart); renderTimeSeries(data); })
-        .catch(function(err) { console.error(err); showOverlay(tsChart, 'error'); });
-    }
+    // 1. Overview (4 main cards)
+    apiFetch('/api/data', Object.assign({view: 'overview'}, dp || {}))
+      .then(function(data) {
+        el('card-tokens').querySelector('.card-value').textContent = fmtNum(data.total_tokens);
+        el('card-cost').querySelector('.card-value').textContent = fmtCost(data.total_cost);
+        el('card-sessions').querySelector('.card-value').textContent = fmtNum(data.total_sessions);
+        el('card-messages').querySelector('.card-value').textContent = fmtNum(data.total_messages);
 
-    if (mdlChart) {
-      showOverlay(mdlChart, 'loading');
-      apiFetch('/api/tokens-by-model')
-        .then(function(data) { hideOverlays(mdlChart); renderModelBreakdown(data); })
-        .catch(function(err) { console.error(err); showOverlay(mdlChart, 'error'); });
-    }
+        var paid = data.paid_messages || 0;
+        el('card-cost-secondary').textContent = paid + ' paid ' + (paid === 1 ? 'message' : 'messages');
 
-    if (prjChart) {
-      showOverlay(prjChart, 'loading');
-      apiFetch('/api/tokens-by-project')
-        .then(function(data) { hideOverlays(prjChart); renderProjectBreakdown(data); })
-        .catch(function(err) { console.error(err); showOverlay(prjChart, 'error'); });
-    }
+        var now = new Date();
+        el('refresh-time').textContent = 'Last refresh: ' + now.toLocaleString('en-US', {
+          month: 'short', day: 'numeric', year: 'numeric',
+          hour: '2-digit', minute: '2-digit', second: '2-digit',
+          hour12: false
+        });
+      }).catch(function(err) {
+        console.error('Overview fetch failed:', err);
+        ['tokens','cost','sessions','messages'].forEach(function(k) {
+          var card = el('card-' + k);
+          if (card) card.querySelector('.card-value').textContent = 'Error';
+        });
+      });
 
-    if (cstChart) {
-      showOverlay(cstChart, 'loading');
-      apiFetch('/api/cost-breakdown')
-        .then(function(data) { hideOverlays(cstChart); renderCostBreakdown(data); })
-        .catch(function(err) { console.error(err); showOverlay(cstChart, 'error'); });
+    // 2. Model efficiency (for efficiency mini cards: cost-per-1k, cache-rate)
+    apiFetch('/api/data', Object.assign({view: 'model-efficiency'}, dp || {}))
+      .then(function(data) {
+        if (!data || !data.length) return;
+        var totalCost = 0, totalTokens = 0, weightedCacheRate = 0, cacheWeight = 0;
+        data.forEach(function(d) {
+          totalCost += d.total_cost || 0;
+          totalTokens += d.total_tokens || 0;
+          if (d.cache_hit_ratio != null) {
+            weightedCacheRate += (d.cache_hit_ratio || 0) * (d.total_tokens || 0);
+            cacheWeight += d.total_tokens || 0;
+          }
+        });
+        var avgCost = totalTokens > 0 ? (totalCost / totalTokens * 1000) : 0;
+        el('card-cost-per-1k').querySelector('.card-value').textContent = fmtCost(avgCost);
+        var cacheRate = cacheWeight > 0 ? (weightedCacheRate / cacheWeight) : 0;
+        el('card-cache-rate').querySelector('.card-value').textContent = (cacheRate * 100).toFixed(1) + '%';
+      }).catch(function(err) {
+        console.error('Model efficiency fetch failed:', err);
+      });
+
+    // 3. Agent breakdown (for top agent card)
+    apiFetch('/api/data', Object.assign({view: 'agent-breakdown'}, dp || {}))
+      .then(function(data) {
+        if (data && data.length > 0) {
+          el('card-top-agent').querySelector('.card-value').textContent = data[0].agent;
+        }
+      }).catch(function(err) {
+        console.error('Agent breakdown fetch failed:', err);
+      });
+
+    // 4-10. All chart panels
+    var panelFetches = [
+      { view: 'usage-heatmap',     dom: 'heatmap-chart',     render: renderUsageHeatmap },
+      { view: 'top-sessions',      dom: 'top-sessions-chart', render: renderTopSessions, params: {limit: 10} },
+      { view: 'tokens-by-model',   dom: 'model-chart',       render: renderModelBreakdown },
+      { view: 'tokens-by-project', dom: 'project-chart',     render: renderProjectBreakdown },
+      { view: 'agent-breakdown',   dom: 'agent-chart',       render: renderAgentBreakdown },
+      { view: 'cost-breakdown',    dom: 'cost-chart',        render: renderCostBreakdown },
+      { view: 'cache-efficiency',  dom: 'cache-chart',       render: renderCacheEfficiency },
+    ];
+
+    panelFetches.forEach(function(p) {
+      var chart = charts[p.dom];
+      if (!chart) return;
+      var params = Object.assign({view: p.view}, dp || {}, p.params || {});
+      showOverlay(chart, 'loading');
+      apiFetch('/api/data', params)
+        .then(function(data) { hideOverlays(chart); p.render(data); })
+        .catch(function(err) { console.error(p.view + ' failed:', err); showOverlay(chart, 'error'); });
+    });
+
+    // Mini time-series
+    var miniChart = charts['mini-ts-chart'];
+    if (miniChart) {
+      var tsParams = Object.assign({view: 'tokens-by-date', granularity: granularity || 'day'}, dp || {});
+      showOverlay(miniChart, 'loading');
+      apiFetch('/api/data', tsParams)
+        .then(function(data) { hideOverlays(miniChart); renderMiniTimeSeries(data); })
+        .catch(function(err) { console.error('mini-ts failed:', err); showOverlay(miniChart, 'error'); });
     }
   }
 
@@ -975,14 +1398,67 @@ body {
       this.classList.add('active');
       currentGranularity = g;
 
-      /* Re-fetch and re-render time-series only */
-      if (tsChart) {
-        showOverlay(tsChart, 'loading');
-        apiFetch('/api/tokens-by-date?granularity=' + g)
-          .then(function(data) { hideOverlays(tsChart); renderTimeSeries(data); })
-          .catch(function(err) { console.error(err); showOverlay(tsChart, 'error'); });
+      /* Re-fetch and re-render mini time-series only */
+      var miniChart = charts['mini-ts-chart'];
+      if (miniChart) {
+        var dp = dateParams();
+        var tsParams = Object.assign({view: 'tokens-by-date', granularity: g}, dp || {});
+        showOverlay(miniChart, 'loading');
+        apiFetch('/api/data', tsParams)
+          .then(function(data) { hideOverlays(miniChart); renderMiniTimeSeries(data); })
+          .catch(function(err) { console.error(err); showOverlay(miniChart, 'error'); });
       }
     });
+  });
+
+  /* ─── TIME RANGE PRESETS ─── */
+  var rangeButtons = document.querySelectorAll('#range-presets button');
+  var activeRangeBtn = document.querySelector('#range-presets button[data-range="all"]');
+
+  rangeButtons.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var range = this.getAttribute('data-range');
+      if (this.classList.contains('active')) return;
+
+      rangeButtons.forEach(function(b) { b.classList.remove('active'); });
+      this.classList.add('active');
+      activeRangeBtn = this;
+
+      var today = new Date();
+      if (range === '7d') {
+        currentStartDate = toISODate(daysAgo(7));
+        currentEndDate = toISODate(today);
+      } else if (range === '30d') {
+        currentStartDate = toISODate(daysAgo(30));
+        currentEndDate = toISODate(today);
+      } else if (range === '90d') {
+        currentStartDate = toISODate(daysAgo(90));
+        currentEndDate = toISODate(today);
+      } else if (range === 'all') {
+        currentStartDate = null;
+        currentEndDate = null;
+      }
+
+      /* Clear custom date inputs */
+      el('start-date').value = '';
+      el('end-date').value = '';
+
+      loadAllData(currentGranularity);
+    });
+  });
+
+  /* ─── CUSTOM DATE INPUTS ─── */
+  el('start-date').addEventListener('change', function() {
+    currentStartDate = this.value || null;
+    /* Deactivate all presets */
+    rangeButtons.forEach(function(b) { b.classList.remove('active'); });
+    loadAllData(currentGranularity);
+  });
+
+  el('end-date').addEventListener('change', function() {
+    currentEndDate = this.value || null;
+    rangeButtons.forEach(function(b) { b.classList.remove('active'); });
+    loadAllData(currentGranularity);
   });
 
   /* ─── RESPONSIVE ─── */
