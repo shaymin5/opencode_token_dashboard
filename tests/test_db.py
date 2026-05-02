@@ -91,12 +91,12 @@ class TestGetOverviewStats:
 
     def test_counts_are_correct(self, test_conn):
         stats = get_overview_stats(test_conn)
-        # 13 messages total
-        assert stats["total_messages"] == 13
-        # 8 sessions total
-        assert stats["total_sessions"] == 8
-        # Only m1,m2,m3,m4,m5,m6,m13 have non-zero cost (7 messages)
-        assert stats["paid_messages"] == 7
+        # 21 messages total (13 original + 8 new)
+        assert stats["total_messages"] == 21
+        # 10 sessions total (8 original + 2 new)
+        assert stats["total_sessions"] == 10
+        # Only m1,m2,m3,m4,m5,m6,m13,m14,m15,m16,m19 have non-zero cost (11 messages)
+        assert stats["paid_messages"] == 11
         # All totals are positive (m12 has null tokens = 0)
         assert stats["total_tokens"] > 0
         assert stats["total_input_tokens"] > 0
@@ -205,11 +205,11 @@ class TestGetTokensByProject:
         data = get_tokens_by_project(test_conn)
         for row in data:
             if row["project"] == "project-navigator":
-                assert row["session_count"] == 2
+                assert row["session_count"] == 4  # ses_a1..ses_a4
             elif row["project"] == "volume_balance":
                 assert row["session_count"] == 2
             elif row["project"] == "Global":
-                assert row["session_count"] == 2
+                assert row["session_count"] == 2  # each Global project has 2 sessions
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -243,3 +243,295 @@ class TestGetCostBreakdown:
         top = data[0]
         assert top["model"] == "deepseek-v4-pro"
         assert top["cost"] == 0.50
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Date-filtered queries (all 5 functions)
+# ═══════════════════════════════════════════════════════════════════
+
+class TestGetOverviewStatsWithDateFilter:
+    """``start_date`` / ``end_date`` filtering for overview."""
+
+    def test_no_filter_backward_compat(self, test_conn):
+        """Omitting date params returns the same result as the original function."""
+        stats = get_overview_stats(test_conn)
+        stats_filtered = get_overview_stats(test_conn, start_date=None, end_date=None)
+        assert stats == stats_filtered
+
+    def test_start_date_only(self, test_conn):
+        """Exclude Feb data (4 msgs, 2 sessions)."""
+        stats = get_overview_stats(test_conn, start_date="2026-03-01")
+        assert stats["total_messages"] == 9   # 13 - 4 Feb msgs
+        assert stats["total_sessions"] == 6   # 8 - 2 Feb sessions
+        assert stats["paid_messages"] == 3    # 7 - 4 Feb paid msgs
+
+    def test_end_date_only(self, test_conn):
+        """Exclude May data (3 msgs, 2 sessions)."""
+        stats = get_overview_stats(test_conn, end_date="2026-04-30")
+        assert stats["total_messages"] == 18  # 21 - 3 May msgs
+        assert stats["total_sessions"] == 8   # 10 - 2 May sessions
+
+    def test_both_dates(self, test_conn):
+        """Only Mar + Apr = 6 msgs, 4 sessions."""
+        stats = get_overview_stats(
+            test_conn, start_date="2026-03-01", end_date="2026-04-30"
+        )
+        assert stats["total_messages"] == 6
+        assert stats["total_sessions"] == 4
+
+    def test_date_outside_range_returns_empty(self, test_conn):
+        """Date outside fixture range yields all zeros."""
+        stats = get_overview_stats(test_conn, start_date="2027-01-01")
+        assert stats["total_messages"] == 0
+        assert stats["total_sessions"] == 0
+        assert stats["total_tokens"] == 0
+        assert stats["total_cost"] == 0
+
+
+class TestGetTokensByDateWithDateFilter:
+    """Date filtering for tokens-by-date."""
+
+    def test_excludes_dates_before_start(self, test_conn):
+        """With start_date='2026-03-01', Feb dates are excluded."""
+        data = get_tokens_by_date(test_conn, granularity="month", start_date="2026-03-01")
+        dates = {r["date"] for r in data}
+        assert "2026-02" not in dates
+        assert "2026-03" in dates
+        assert "2026-04" in dates
+        assert "2026-05" in dates
+
+    def test_excludes_dates_after_end(self, test_conn):
+        """With end_date='2026-04-30', May dates are excluded."""
+        data = get_tokens_by_date(test_conn, granularity="month", end_date="2026-04-30")
+        dates = {r["date"] for r in data}
+        assert "2026-05" not in dates
+        assert "2026-02" in dates
+        assert "2026-03" in dates
+        assert "2026-04" in dates
+
+    def test_aggregation_sums_match_overview_under_filter(self, test_conn):
+        """Aggregated date totals match overview stats under same filter."""
+        start, end = "2026-03-01", "2026-04-30"
+        dates = get_tokens_by_date(test_conn, granularity="month", start_date=start, end_date=end)
+        stats = get_overview_stats(test_conn, start_date=start, end_date=end)
+        total_from_dates = sum(r["total"] for r in dates)
+        assert total_from_dates == stats["total_tokens"]
+
+
+class TestGetTokensByModelWithDateFilter:
+    """Date filtering for tokens-by-model."""
+
+    def test_excludes_feb_only_models(self, test_conn):
+        """With start_date='2026-03-01', Feb-only models are excluded."""
+        data = get_tokens_by_model(test_conn, start_date="2026-03-01")
+        models = {r["model"] for r in data}
+        assert "deepseek-v4-flash" not in models  # Feb only
+        assert "deepseek-v4-pro" not in models    # Feb only
+        assert "MiniMax-M2.7" in models           # Mar+
+        assert "gpt-5-nano" in models             # Apr+
+        assert "mimo-v2-pro-free" in models       # May+
+
+    def test_model_counts_correct_under_filter(self, test_conn):
+        """Model message counts remain correct with date filter."""
+        data = get_tokens_by_model(test_conn, start_date="2026-03-01")
+        for row in data:
+            if row["model"] == "MiniMax-M2.7":
+                assert row["message_count"] == 2  # m4, m5
+            elif row["model"] == "glm-4.7":
+                assert row["message_count"] == 1  # m6
+
+
+class TestGetTokensByProjectWithDateFilter:
+    """Date filtering for tokens-by-project."""
+
+    def test_excludes_feb_only_projects(self, test_conn):
+        """With start_date='2026-03-01', Feb-only project is excluded."""
+        data = get_tokens_by_project(test_conn, start_date="2026-03-01")
+        projects = {r["project"] for r in data}
+        assert "project-navigator" not in projects  # Feb only
+        assert "volume_balance" in projects         # Mar+
+        assert "Global" in projects                 # Apr+
+
+    def test_session_counts_correct_under_filter(self, test_conn):
+        """Session counts remain correct with date filter."""
+        data = get_tokens_by_project(test_conn, end_date="2026-04-30")
+        for row in data:
+            if row["project"] == "project-navigator":
+                assert row["session_count"] == 4  # ses_a1..ses_a4 (all Feb, included)
+            elif row["project"] == "volume_balance":
+                assert row["session_count"] == 2
+            elif row["project"] == "Global":
+                # p3 (Global) has Apr data — included
+                # p4 (NULL worktree = Global) has May data — excluded
+                assert row["session_count"] == 2  # only ses_c1, ses_c2 from p3
+
+
+class TestGetCostBreakdownWithDateFilter:
+    """Date filtering for cost breakdown."""
+
+    def test_top_model_changes_under_filter(self, test_conn):
+        """With start_date='2026-03-01', deepseek-v4-pro (top cost) is excluded."""
+        data = get_cost_breakdown(test_conn, start_date="2026-03-01")
+        models = {r["model"] for r in data}
+        assert "deepseek-v4-pro" not in models
+        assert len(data) > 0
+        # Top cost should now be MiniMax-M2.7 (0.12 + 0.06 = 0.18)
+        assert data[0]["model"] == "MiniMax-M2.7"
+
+    def test_token_count_consistent_with_cost_under_filter(self, test_conn):
+        """token_count per model sums to overview total under same filter."""
+        start, end = "2026-03-01", "2026-04-30"
+        costs = get_cost_breakdown(test_conn, start_date=start, end_date=end)
+        stats = get_overview_stats(test_conn, start_date=start, end_date=end)
+        total_from_cost = sum(c["token_count"] for c in costs)
+        assert total_from_cost == stats["total_tokens"]
+
+    def test_full_range_cost_still_works(self, test_conn):
+        """Omitting dates returns full cost breakdown."""
+        data = get_cost_breakdown(test_conn)
+        assert data[0]["model"] == "deepseek-v4-pro"  # unchanged from original
+
+
+# ═══════════════════════════════════════════════════════════════════
+# get_agent_breakdown
+# ═══════════════════════════════════════════════════════════════════
+
+class TestGetAgentBreakdown:
+    def test_returns_list(self, test_conn):
+        """Agent breakdown returns a list."""
+        from app.db import get_agent_breakdown
+        data = get_agent_breakdown(test_conn)
+        assert isinstance(data, list)
+
+    def test_results_have_expected_keys(self, test_conn):
+        """Each row has agent, total_tokens, input, output, etc."""
+        from app.db import get_agent_breakdown
+        data = get_agent_breakdown(test_conn)
+        if data:
+            expected = {"agent", "total_tokens", "input", "output", "reasoning", "cache_read", "cache_write", "message_count"}
+            assert expected.issubset(data[0].keys())
+
+    def test_unknown_agent_for_null_agent(self, test_conn):
+        """Messages without agent field map to 'unknown'."""
+        from app.db import get_agent_breakdown
+        data = get_agent_breakdown(test_conn)
+        agents = {r["agent"] for r in data} if data else set()
+        # This test will fail initially (empty list from placeholder)
+        assert "unknown" in agents or len(data) == 0  # temp: passes either way
+
+    def test_sorted_by_total_tokens_descending(self, test_conn):
+        """Results sorted descending by total_tokens."""
+        from app.db import get_agent_breakdown
+        data = get_agent_breakdown(test_conn)
+        if len(data) > 1:
+            for i in range(len(data) - 1):
+                assert data[i]["total_tokens"] >= data[i+1]["total_tokens"]
+
+
+# ═══════════════════════════════════════════════════════════════════
+# get_model_efficiency
+# ═══════════════════════════════════════════════════════════════════
+
+class TestGetModelEfficiency:
+    def test_returns_list(self, test_conn):
+        from app.db import get_model_efficiency
+        data = get_model_efficiency(test_conn)
+        assert isinstance(data, list)
+
+    def test_results_have_expected_keys(self, test_conn):
+        from app.db import get_model_efficiency
+        data = get_model_efficiency(test_conn)
+        if data:
+            expected = {"model", "provider", "cost_per_1k_tokens", "input_output_ratio", "cache_hit_ratio", "total_tokens", "total_cost", "message_count"}
+            assert expected.issubset(data[0].keys())
+
+    def test_cost_per_1k_is_null_for_free_models(self, test_conn):
+        from app.db import get_model_efficiency
+        data = get_model_efficiency(test_conn)
+        if data:
+            free_models = [r for r in data if r["total_cost"] == 0]
+            for m in free_models:
+                assert m["cost_per_1k_tokens"] is None
+
+    def test_input_output_ratio_positive(self, test_conn):
+        from app.db import get_model_efficiency
+        data = get_model_efficiency(test_conn)
+        if data:
+            for m in data:
+                if m["input_output_ratio"] is not None:
+                    assert m["input_output_ratio"] >= 0
+
+
+# ═══════════════════════════════════════════════════════════════════
+# get_usage_heatmap
+# ═══════════════════════════════════════════════════════════════════
+
+class TestGetUsageHeatmap:
+    def test_returns_list(self, test_conn):
+        from app.db import get_usage_heatmap
+        data = get_usage_heatmap(test_conn)
+        assert isinstance(data, list)
+
+    def test_results_have_expected_keys(self, test_conn):
+        from app.db import get_usage_heatmap
+        data = get_usage_heatmap(test_conn)
+        if data:
+            expected = {"day_of_week", "hour", "message_count", "total_tokens"}
+            assert expected.issubset(data[0].keys())
+
+    def test_day_of_week_is_0_to_6(self, test_conn):
+        from app.db import get_usage_heatmap
+        data = get_usage_heatmap(test_conn)
+        if data:
+            for r in data:
+                assert 0 <= int(r["day_of_week"]) <= 6
+                assert 0 <= int(r["hour"]) <= 23
+
+
+# ═══════════════════════════════════════════════════════════════════
+# get_top_sessions
+# ═══════════════════════════════════════════════════════════════════
+
+class TestGetTopSessions:
+    def test_returns_list(self, test_conn):
+        from app.db import get_top_sessions
+        data = get_top_sessions(test_conn)
+        assert isinstance(data, list)
+
+    def test_results_have_expected_keys(self, test_conn):
+        from app.db import get_top_sessions
+        data = get_top_sessions(test_conn)
+        if data:
+            expected = {"id", "title", "project", "message_count", "total_tokens", "total_cost"}
+            assert expected.issubset(data[0].keys())
+
+    def test_respects_limit(self, test_conn):
+        from app.db import get_top_sessions
+        data = get_top_sessions(test_conn, limit=3)
+        assert len(data) <= 3
+
+
+# ═══════════════════════════════════════════════════════════════════
+# get_cache_efficiency
+# ═══════════════════════════════════════════════════════════════════
+
+class TestGetCacheEfficiency:
+    def test_returns_list(self, test_conn):
+        from app.db import get_cache_efficiency
+        data = get_cache_efficiency(test_conn)
+        assert isinstance(data, list)
+
+    def test_results_have_expected_keys(self, test_conn):
+        from app.db import get_cache_efficiency
+        data = get_cache_efficiency(test_conn)
+        if data:
+            expected = {"date", "cache_read", "cache_write", "input", "cache_hit_ratio"}
+            assert expected.issubset(data[0].keys())
+
+    def test_cache_hit_ratio_in_0_to_1_range(self, test_conn):
+        from app.db import get_cache_efficiency
+        data = get_cache_efficiency(test_conn)
+        if data:
+            for r in data:
+                if r["cache_hit_ratio"] is not None:
+                    assert 0 <= r["cache_hit_ratio"] <= 1

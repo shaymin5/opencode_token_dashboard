@@ -27,7 +27,9 @@ def _create_schema(conn: sqlite3.Connection) -> None:
             id              TEXT PRIMARY KEY,
             project_id      TEXT REFERENCES project(id),
             title           TEXT,
-            time_created    INTEGER
+            time_created    INTEGER,
+            parent_id       TEXT,
+            version         INTEGER DEFAULT 1
         );
 
         CREATE TABLE IF NOT EXISTS message (
@@ -54,9 +56,11 @@ def _insert_fixture_data(conn: sqlite3.Connection) -> None:
       p3 — /                                 (global)
       p4 — NULL worktree                      (unknown)
 
-    Sessions: 2 per project (8 total)
-    Messages: 2-3 per session (20 total)
+    Sessions: 4 per project p1, 2 per others (10 total)
+    Messages: ~21 total
     """
+    import json  # noqa: F811 — needed for json.dumps in custom messages below
+
     # ── Projects ────────────────────────────────────────────────
     projects = [
         ("p1", None, r"D:\gameboy\project-navigator"),
@@ -71,17 +75,19 @@ def _insert_fixture_data(conn: sqlite3.Connection) -> None:
 
     # ── Sessions ────────────────────────────────────────────────
     sessions = [
-        ("ses_a1", "p1", "Session 1-A", 1769941466263),  # 2026-02-01
-        ("ses_a2", "p1", "Session 1-B", 1769941467000),
-        ("ses_b1", "p2", "Session 2-A", 1772619866263),  # 2026-03-01
-        ("ses_b2", "p2", "Session 2-B", 1772706266263),
-        ("ses_c1", "p3", "Global Session", 1775211866263),  # 2026-04-01
-        ("ses_c2", "p3", "Global Session 2", 1775298266263),
-        ("ses_d1", "p4", "Unknown Session", 1777883866263),  # 2026-05-01
-        ("ses_d2", "p4", "Unknown Session 2", 1777970266263),
+        ("ses_a1", "p1", "Session 1-A", 1769941466263, None, 1),   # 2026-02-01
+        ("ses_a2", "p1", "Session 1-B", 1769941467000, None, 1),
+        ("ses_a3", "p1", "Session 1-C with parent", 1769941480000, "ses_a1", 2),
+        ("ses_a4", "p1", "Session 1-D standalone", 1769941490000, None, 1),
+        ("ses_b1", "p2", "Session 2-A", 1772619866263, None, 1),   # 2026-03-01
+        ("ses_b2", "p2", "Session 2-B", 1772706266263, None, 1),
+        ("ses_c1", "p3", "Global Session", 1775211866263, None, 1), # 2026-04-01
+        ("ses_c2", "p3", "Global Session 2", 1775298266263, None, 1),
+        ("ses_d1", "p4", "Unknown Session", 1777883866263, None, 1), # 2026-05-01
+        ("ses_d2", "p4", "Unknown Session 2", 1777970266263, None, 1),
     ]
     conn.executemany(
-        "INSERT INTO session (id, project_id, title, time_created) VALUES (?, ?, ?, ?)",
+        "INSERT INTO session (id, project_id, title, time_created, parent_id, version) VALUES (?, ?, ?, ?, ?, ?)",
         sessions,
     )
 
@@ -138,6 +144,70 @@ def _insert_fixture_data(conn: sqlite3.Connection) -> None:
         ("m12", "ses_d2", '{"modelID":"test","providerID":"test","cost":0,"tokens":{"input":null,"output":null,"cache":{"read":null}}}', 1777970266263),
         # Edge case: very high cost
         ("m13", "ses_a2", msg_data(inp=10000, out=5000, reason=1000, cache_r=50000, cache_w=5000, cost=0.50, model="deepseek-v4-pro", provider="opencode-go"), 1769941475000),
+        # ── New fixture data: edge cases and varied structures ──
+        # m14 — Nested model JSON (user-message style with $.model.modelID / $.model.providerID)
+        ("m14", "ses_a1", json.dumps({
+            "model": {"modelID": "nested-model-v1", "providerID": "nested-provider"},
+            "role": "user",
+            "mode": "explore",
+            "agent": "explore",
+            "cost": 0.01,
+            "tokens": {"input": 500, "output": 200, "reasoning": 0, "cache": {"read": 1000, "write": 100}},
+        }), 1769941500000),
+        # m15 — Agent "oracle" with high reasoning tokens
+        ("m15", "ses_a3", msg_data(agent="oracle", inp=2000, out=1000, reason=800, cache_r=5000, cache_w=200, cost=0.15), 1769941510000),
+        # m16 — Agent "explore" with moderate tokens
+        ("m16", "ses_a3", msg_data(agent="explore", inp=800, out=400, reason=50, cache_r=2000, cache_w=100, cost=0.04), 1769941520000),
+        # m17 — NULL agent (no `agent` field in JSON)
+        ("m17", "ses_a4", json.dumps({
+            "modelID": "test-no-agent",
+            "providerID": "test",
+            "role": "assistant",
+            "mode": "build",
+            "cost": 0.0,
+            "tokens": {"input": 300, "output": 150, "reasoning": 0, "cache": {"read": 500, "write": 0}},
+        }), 1769941530000),
+        # m18 — With $.error field
+        ("m18", "ses_a4", json.dumps({
+            "modelID": "error-model",
+            "providerID": "test",
+            "role": "assistant",
+            "mode": "build",
+            "agent": "build",
+            "error": {"name": "MessageAbortedError", "data": {"message": "aborted"}},
+            "cost": 0.0,
+            "tokens": {"input": 100, "output": 0, "reasoning": 0, "cache": {"read": 0, "write": 0}},
+        }), 1769941540000),
+        # m19 — With $.time.created and $.time.completed (response timing)
+        ("m19", "ses_a3", json.dumps({
+            "modelID": "timing-model",
+            "providerID": "test",
+            "role": "assistant",
+            "mode": "build",
+            "agent": "build",
+            "cost": 0.02,
+            "time": {"created": "2026-05-01T10:00:00Z", "completed": "2026-05-01T10:01:00Z"},
+            "tokens": {"input": 400, "output": 200, "reasoning": 50, "cache": {"read": 1000, "write": 100}},
+        }), 1769941550000),
+        # m20 — Zero tokens (input=0, output=0)
+        ("m20", "ses_a4", json.dumps({
+            "modelID": "zero-token-model",
+            "providerID": "test",
+            "role": "assistant",
+            "mode": "build",
+            "agent": "build",
+            "cost": 0.0,
+            "tokens": {"input": 0, "output": 0, "reasoning": 0, "cache": {"read": 0, "write": 0}},
+        }), 1769941560000),
+        # m21 — NULL cost (cost field missing)
+        ("m21", "ses_a4", json.dumps({
+            "modelID": "null-cost-model",
+            "providerID": "test",
+            "role": "assistant",
+            "mode": "build",
+            "agent": "build",
+            "tokens": {"input": 200, "output": 100, "reasoning": 0, "cache": {"read": 300, "write": 0}},
+        }), 1769941570000),
     ]
     conn.executemany(
         "INSERT INTO message (id, session_id, data, time_created) VALUES (?, ?, ?, ?)",
