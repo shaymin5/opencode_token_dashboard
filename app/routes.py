@@ -5,9 +5,10 @@ All DB connections are read-only and scoped per request.
 """
 
 from collections.abc import Iterator
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from jinja2 import Environment, FileSystemLoader
 from sqlite3 import Connection
 
@@ -19,7 +20,31 @@ from app.db import (
     get_tokens_by_model,
     get_tokens_by_project,
     get_cost_breakdown,
+    get_agent_breakdown,
+    get_model_efficiency,
+    get_usage_heatmap,
+    get_top_sessions,
+    get_cache_efficiency,
 )
+
+ViewName = Literal[
+    "overview", "tokens-by-date", "tokens-by-model", "tokens-by-project",
+    "cost-breakdown", "agent-breakdown", "model-efficiency", "usage-heatmap",
+    "top-sessions", "cache-efficiency",
+]
+
+VIEW_DISPATCH: dict[str, str] = {
+    "overview": "get_overview_stats",
+    "tokens-by-date": "get_tokens_by_date",
+    "tokens-by-model": "get_tokens_by_model",
+    "tokens-by-project": "get_tokens_by_project",
+    "cost-breakdown": "get_cost_breakdown",
+    "agent-breakdown": "get_agent_breakdown",
+    "model-efficiency": "get_model_efficiency",
+    "usage-heatmap": "get_usage_heatmap",
+    "top-sessions": "get_top_sessions",
+    "cache-efficiency": "get_cache_efficiency",
+}
 
 router = APIRouter()
 
@@ -56,66 +81,116 @@ async def index(request: Request):
 
 
 # ---------------------------------------------------------------------------
-# JSON API endpoints
+# JSON API endpoints — unified dispatch
 # ---------------------------------------------------------------------------
-@router.get("/api/overview")
-async def api_overview(conn: Connection = Depends(get_db)):
-    """Aggregate overview statistics."""
+@router.get("/api/data")
+async def api_data(
+    view: str | None = Query(None, description="Data view name"),
+    granularity: str = Query("day", description="Aggregation period: day, week, or month"),
+    start_date: str | None = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: str | None = Query(None, description="End date (YYYY-MM-DD)"),
+    limit: int = Query(10, description="Maximum results (for top-sessions view)"),
+    conn: Connection = Depends(get_db),
+):
+    """Unified data endpoint. Dispatch based on `view` parameter."""
+    if view is None:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Missing required 'view' query parameter"},
+        )
+    if view not in VIEW_DISPATCH:
+        valid = list(VIEW_DISPATCH.keys())
+        return JSONResponse(
+            status_code=400,
+            content={"error": f"Unknown view '{view}'. Valid views: {valid}"},
+        )
+
+    func_name = VIEW_DISPATCH[view]
+    func = globals().get(func_name)
+    if func is None:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Query function '{func_name}' not found"},
+        )
+
     try:
-        return get_overview_stats(conn)
+        if view == "tokens-by-date":
+            return func(conn, granularity=granularity, start_date=start_date, end_date=end_date)
+        elif view == "top-sessions":
+            return func(conn, start_date=start_date, end_date=end_date, limit=limit)
+        else:
+            return func(conn, start_date=start_date, end_date=end_date)
     except Exception as exc:
         return JSONResponse(
             status_code=500,
-            content={"error": f"Failed to fetch overview stats: {exc}"},
+            content={"error": f"Failed to fetch {view}: {exc}"},
         )
+
+
+# ---------------------------------------------------------------------------
+# Backward-compatible 307 redirects
+# ---------------------------------------------------------------------------
+@router.get("/api/overview")
+async def api_overview_redirect(
+    start_date: str | None = Query(None),
+    end_date: str | None = Query(None),
+):
+    url = "/api/data?view=overview"
+    if start_date:
+        url += f"&start_date={start_date}"
+    if end_date:
+        url += f"&end_date={end_date}"
+    return RedirectResponse(url=url, status_code=307)
 
 
 @router.get("/api/tokens-by-date")
-async def api_tokens_by_date(
-    granularity: str = Query("day", description="Aggregation period: day, week, or month"),
-    conn: Connection = Depends(get_db),
+async def api_tokens_by_date_redirect(
+    granularity: str = Query("day"),
+    start_date: str | None = Query(None),
+    end_date: str | None = Query(None),
 ):
-    """Token usage aggregated by time period."""
-    try:
-        return get_tokens_by_date(conn, granularity=granularity)
-    except Exception as exc:
-        return JSONResponse(
-            status_code=500,
-            content={"error": f"Failed to fetch tokens by date: {exc}"},
-        )
+    url = f"/api/data?view=tokens-by-date&granularity={granularity}"
+    if start_date:
+        url += f"&start_date={start_date}"
+    if end_date:
+        url += f"&end_date={end_date}"
+    return RedirectResponse(url=url, status_code=307)
 
 
 @router.get("/api/tokens-by-model")
-async def api_tokens_by_model(conn: Connection = Depends(get_db)):
-    """Token usage aggregated by model + provider."""
-    try:
-        return get_tokens_by_model(conn)
-    except Exception as exc:
-        return JSONResponse(
-            status_code=500,
-            content={"error": f"Failed to fetch tokens by model: {exc}"},
-        )
+async def api_tokens_by_model_redirect(
+    start_date: str | None = Query(None),
+    end_date: str | None = Query(None),
+):
+    url = "/api/data?view=tokens-by-model"
+    if start_date:
+        url += f"&start_date={start_date}"
+    if end_date:
+        url += f"&end_date={end_date}"
+    return RedirectResponse(url=url, status_code=307)
 
 
 @router.get("/api/tokens-by-project")
-async def api_tokens_by_project(conn: Connection = Depends(get_db)):
-    """Token usage aggregated by project."""
-    try:
-        return get_tokens_by_project(conn)
-    except Exception as exc:
-        return JSONResponse(
-            status_code=500,
-            content={"error": f"Failed to fetch tokens by project: {exc}"},
-        )
+async def api_tokens_by_project_redirect(
+    start_date: str | None = Query(None),
+    end_date: str | None = Query(None),
+):
+    url = "/api/data?view=tokens-by-project"
+    if start_date:
+        url += f"&start_date={start_date}"
+    if end_date:
+        url += f"&end_date={end_date}"
+    return RedirectResponse(url=url, status_code=307)
 
 
 @router.get("/api/cost-breakdown")
-async def api_cost_breakdown(conn: Connection = Depends(get_db)):
-    """Cost breakdown aggregated by model + provider."""
-    try:
-        return get_cost_breakdown(conn)
-    except Exception as exc:
-        return JSONResponse(
-            status_code=500,
-            content={"error": f"Failed to fetch cost breakdown: {exc}"},
-        )
+async def api_cost_breakdown_redirect(
+    start_date: str | None = Query(None),
+    end_date: str | None = Query(None),
+):
+    url = "/api/data?view=cost-breakdown"
+    if start_date:
+        url += f"&start_date={start_date}"
+    if end_date:
+        url += f"&end_date={end_date}"
+    return RedirectResponse(url=url, status_code=307)

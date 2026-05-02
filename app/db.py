@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -86,12 +87,96 @@ def _tokens(data_alias: str = "data") -> str:
     """
 
 
+def _filter_token_messages(data_alias: str = "data") -> tuple[str, list]:
+    """Return a SQL WHERE clause fragment that filters to token-bearing messages.
+
+    Uses ``json_extract(data, '$.tokens.input') IS NOT NULL`` (token presence)
+    rather than ``role = 'assistant'`` — defensive against future schema changes.
+
+    Returns ``("WHERE json_extract(..., '$.tokens.input') IS NOT NULL", [])``.
+    """
+    d = data_alias
+    return (f"WHERE json_extract({d}, '$.tokens.input') IS NOT NULL", [])
+
+
+def _coalesce_model(data_alias: str = "data") -> str:
+    """Return SQL snippet that coalesces both flat and nested model fields.
+
+    Handles the JSON structure inconsistency where assistant messages use
+    flat ``$.modelID`` but user messages use nested ``$.model.modelID``.
+    """
+    d = data_alias
+    return f"COALESCE(json_extract({d}, '$.model.modelID'), json_extract({d}, '$.modelID'))"
+
+
+def _coalesce_provider(data_alias: str = "data") -> str:
+    """Return SQL snippet that coalesces both flat and nested provider fields."""
+    d = data_alias
+    return f"COALESCE(json_extract({d}, '$.model.providerID'), json_extract({d}, '$.providerID'))"
+
+
+DIV_ZERO_GUARD = """
+    CASE WHEN denominator > 0
+    THEN CAST(numerator AS REAL) / denominator
+    ELSE NULL
+    END
+"""
+
+
+# ---------------------------------------------------------------------------
+# Date filter helpers
+# ---------------------------------------------------------------------------
+
+
+def _iso_date_to_ms(date_str: str, end_of_day: bool = False) -> int:
+    """Convert ISO date ``YYYY-MM-DD`` to milliseconds since Unix epoch.
+
+    When ``end_of_day`` is ``True``, returns the timestamp for
+    23:59:59.999999 UTC (inclusive upper bound for a day).
+    """
+    dt = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    if end_of_day:
+        dt = dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+    return int(dt.timestamp() * 1000)
+
+
+def _build_date_filter(
+    start_date: str | None = None,
+    end_date: str | None = None,
+    col: str = "time_created",
+) -> tuple[str, list[int]]:
+    """Build a SQL WHERE clause fragment + params for date filtering.
+
+    Returns ``("", [])`` when both dates are ``None``.
+
+    The clause references the given *col* (default ``time_created``).
+    ``start_date`` is inclusive from 00:00:00.000;
+    ``end_date`` is inclusive through 23:59:59.999.
+    """
+    clauses: list[str] = []
+    params: list[int] = []
+    if start_date:
+        clauses.append(f"{col} >= ?")
+        params.append(_iso_date_to_ms(start_date))
+    if end_date:
+        clauses.append(f"{col} <= ?")
+        params.append(_iso_date_to_ms(end_date, end_of_day=True))
+    if not clauses:
+        return ("", [])
+    return (" AND ".join(clauses), params)
+
+
 # ---------------------------------------------------------------------------
 # 1. Overview stats
 # ---------------------------------------------------------------------------
 
-def get_overview_stats(conn: sqlite3.Connection) -> dict[str, Any]:
-    """Return dashboard-level aggregate stats."""
+def get_overview_stats(
+    conn: sqlite3.Connection,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> dict[str, Any]:
+    """Return dashboard-level aggregate stats, optionally filtered by date range."""
+    date_clause, date_params = _build_date_filter(start_date, end_date)
     sql = f"""
         SELECT
             COALESCE(SUM(CAST(json_extract(data, '$.tokens.input')       AS INTEGER)), 0)
@@ -110,8 +195,9 @@ def get_overview_stats(conn: sqlite3.Connection) -> dict[str, Any]:
             COUNT(*) AS total_messages,
             COUNT(*) FILTER (WHERE CAST(json_extract(data, '$.cost') AS REAL) > 0) AS paid_messages
         FROM message
+        {('WHERE ' + date_clause) if date_clause else ''}
     """
-    row = conn.execute(sql).fetchone()
+    row = conn.execute(sql, date_params).fetchone()
     return dict(row)
 
 
@@ -120,9 +206,12 @@ def get_overview_stats(conn: sqlite3.Connection) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 def get_tokens_by_date(
-    conn: sqlite3.Connection, granularity: str = "day"
+    conn: sqlite3.Connection,
+    granularity: str = "day",
+    start_date: str | None = None,
+    end_date: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Token usage aggregated by time period.
+    """Token usage aggregated by time period, optionally filtered by date range.
 
     Supported granularities: ``day``, ``week``, ``month``.
 
@@ -135,6 +224,7 @@ def get_tokens_by_date(
         "month": "%Y-%m",
     }
     fmt = fmt_map.get(granularity, "%Y-%m-%d")
+    date_clause, date_params = _build_date_filter(start_date, end_date)
 
     sql = f"""
         SELECT
@@ -146,10 +236,11 @@ def get_tokens_by_date(
             COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.write') AS INTEGER)), 0) AS cache_write
         FROM message
         WHERE json_extract(data, '$.tokens.input') IS NOT NULL
+        {('AND ' + date_clause) if date_clause else ''}
         GROUP BY date
         ORDER BY date ASC
     """
-    rows = conn.execute(sql).fetchall()
+    rows = conn.execute(sql, date_params).fetchall()
     result = []
     for r in rows:
         d = dict(r)
@@ -162,8 +253,13 @@ def get_tokens_by_date(
 # 3. Tokens by model
 # ---------------------------------------------------------------------------
 
-def get_tokens_by_model(conn: sqlite3.Connection) -> list[dict[str, Any]]:
-    """Token usage aggregated by model + provider."""
+def get_tokens_by_model(
+    conn: sqlite3.Connection,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[dict[str, Any]]:
+    """Token usage aggregated by model + provider, optionally filtered by date range."""
+    date_clause, date_params = _build_date_filter(start_date, end_date)
     sql = f"""
         SELECT
             COALESCE(json_extract(data, '$.modelID'),   'unknown')   AS model,
@@ -176,6 +272,7 @@ def get_tokens_by_model(conn: sqlite3.Connection) -> list[dict[str, Any]]:
             COALESCE(SUM(CAST(json_extract(data, '$.cost') AS REAL)), 0) AS cost,
             COUNT(*) AS message_count
         FROM message
+        {('WHERE ' + date_clause) if date_clause else ''}
         GROUP BY model, provider
         ORDER BY
             COALESCE(SUM(CAST(json_extract(data, '$.tokens.input') AS INTEGER)), 0)
@@ -185,7 +282,7 @@ def get_tokens_by_model(conn: sqlite3.Connection) -> list[dict[str, Any]]:
             + COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.write') AS INTEGER)), 0)
             DESC
     """
-    return [dict(r) for r in conn.execute(sql).fetchall()]
+    return [dict(r) for r in conn.execute(sql, date_params).fetchall()]
 
 
 # ---------------------------------------------------------------------------
@@ -203,12 +300,17 @@ def _project_name_from_worktree(worktree: str | None) -> str:
     return os.path.basename(worktree.rstrip("/\\")) or "Unknown"
 
 
-def get_tokens_by_project(conn: sqlite3.Connection) -> list[dict[str, Any]]:
-    """Token usage aggregated by project.
+def get_tokens_by_project(
+    conn: sqlite3.Connection,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[dict[str, Any]]:
+    """Token usage aggregated by project, optionally filtered by date range.
 
     ``project.name`` is always NULL in the DB — we derive the project name
     from the ``worktree`` path basename via :func:`_project_name_from_worktree`.
     """
+    date_clause, date_params = _build_date_filter(start_date, end_date, col="m.time_created")
     sql = f"""
         SELECT
             p.worktree,
@@ -223,6 +325,7 @@ def get_tokens_by_project(conn: sqlite3.Connection) -> list[dict[str, Any]]:
         FROM message m
         JOIN session s ON s.id = m.session_id
         JOIN project p ON p.id = s.project_id
+        {('WHERE ' + date_clause) if date_clause else ''}
         GROUP BY p.id
         ORDER BY
             COALESCE(SUM(CAST(json_extract(m.data, '$.tokens.input') AS INTEGER)), 0)
@@ -232,7 +335,7 @@ def get_tokens_by_project(conn: sqlite3.Connection) -> list[dict[str, Any]]:
             + COALESCE(SUM(CAST(json_extract(m.data, '$.tokens.cache.write') AS INTEGER)), 0)
             DESC
     """
-    rows = conn.execute(sql).fetchall()
+    rows = conn.execute(sql, date_params).fetchall()
     result = []
     for r in rows:
         d = dict(r)
@@ -246,32 +349,49 @@ def get_tokens_by_project(conn: sqlite3.Connection) -> list[dict[str, Any]]:
 # 5. Cost breakdown
 # ---------------------------------------------------------------------------
 
-def get_cost_breakdown(conn: sqlite3.Connection) -> list[dict[str, Any]]:
-    """Cost aggregated by model + provider, sorted by cost descending."""
-    sql = """
+def get_cost_breakdown(
+    conn: sqlite3.Connection,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[dict[str, Any]]:
+    """Cost aggregated by model + provider, sorted by cost descending.
+    Optionally filtered by date range.
+    """
+    date_clause, date_params = _build_date_filter(start_date, end_date)
+    sql = f"""
         SELECT
             COALESCE(json_extract(data, '$.modelID'),   'unknown')  AS model,
             COALESCE(json_extract(data, '$.providerID'), 'unknown') AS provider,
             COALESCE(SUM(CAST(json_extract(data, '$.cost') AS REAL)), 0) AS cost,
             COUNT(*) AS message_count
         FROM message
+        {('WHERE ' + date_clause) if date_clause else ''}
         GROUP BY model, provider
         ORDER BY cost DESC
     """
-    rows = conn.execute(sql).fetchall()
+    rows = conn.execute(sql, date_params).fetchall()
     result = []
     for r in rows:
         d = dict(r)
-        d["token_count"] = _get_model_token_count(conn, d["model"], d["provider"])
+        d["token_count"] = _get_model_token_count(
+            conn, d["model"], d["provider"],
+            start_date=start_date, end_date=end_date,
+        )
         result.append(d)
     return result
 
 
 def _get_model_token_count(
-    conn: sqlite3.Connection, model: str, provider: str
+    conn: sqlite3.Connection,
+    model: str,
+    provider: str,
+    start_date: str | None = None,
+    end_date: str | None = None,
 ) -> int:
-    """Return total tokens for a given model + provider pair."""
-    sql = """
+    """Return total tokens for a given model + provider pair,
+    optionally filtered by date range."""
+    date_clause, date_params = _build_date_filter(start_date, end_date)
+    sql = f"""
         SELECT
             COALESCE(SUM(CAST(json_extract(data, '$.tokens.input')       AS INTEGER)), 0)
             + COALESCE(SUM(CAST(json_extract(data, '$.tokens.output')      AS INTEGER)), 0)
@@ -282,6 +402,213 @@ def _get_model_token_count(
         FROM message
         WHERE json_extract(data, '$.modelID') = ?
           AND json_extract(data, '$.providerID') = ?
+        {('AND ' + date_clause) if date_clause else ''}
     """
-    row = conn.execute(sql, (model, provider)).fetchone()
+    params: list[Any] = [model, provider] + date_params
+    row = conn.execute(sql, params).fetchone()
     return row["token_count"] if row else 0
+
+
+# ---------------------------------------------------------------------------
+# 6–10. Placeholder stubs (implementations added in Tasks 5–9)
+# ---------------------------------------------------------------------------
+
+
+def get_agent_breakdown(
+    conn: sqlite3.Connection,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[dict[str, Any]]:
+    """Token usage aggregated by agent, sorted by total_tokens descending.
+
+    Messages without an ``agent`` field in JSON data are coalesced to
+    ``'unknown'``.  Messages with NULL token fields are excluded from
+    aggregation (they contribute nothing).
+    """
+    date_clause, date_params = _build_date_filter(start_date, end_date)
+    sql = f"""
+        SELECT
+            COALESCE(json_extract(data, '$.agent'), 'unknown') AS agent,
+            COALESCE(SUM(CAST(json_extract(data, '$.tokens.input')       AS INTEGER)), 0)
+            + COALESCE(SUM(CAST(json_extract(data, '$.tokens.output')      AS INTEGER)), 0)
+            + COALESCE(SUM(CAST(json_extract(data, '$.tokens.reasoning')   AS INTEGER)), 0)
+            + COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.read')  AS INTEGER)), 0)
+            + COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.write') AS INTEGER)), 0)
+            AS total_tokens,
+            COALESCE(SUM(CAST(json_extract(data, '$.tokens.input')       AS INTEGER)), 0) AS input,
+            COALESCE(SUM(CAST(json_extract(data, '$.tokens.output')      AS INTEGER)), 0) AS output,
+            COALESCE(SUM(CAST(json_extract(data, '$.tokens.reasoning')   AS INTEGER)), 0) AS reasoning,
+            COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.read')  AS INTEGER)), 0) AS cache_read,
+            COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.write') AS INTEGER)), 0) AS cache_write,
+            COUNT(*) AS message_count
+        FROM message
+        WHERE json_extract(data, '$.tokens.input') IS NOT NULL
+        {('AND ' + date_clause) if date_clause else ''}
+        GROUP BY agent
+        ORDER BY total_tokens DESC
+    """
+    return [dict(r) for r in conn.execute(sql, date_params).fetchall()]
+
+
+def get_model_efficiency(
+    conn: sqlite3.Connection,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[dict[str, Any]]:
+    """Compute per-model efficiency metrics: cost/1K tokens, I/O ratio, cache hit ratio.
+
+    Returns a list of dicts with keys:
+        model, provider, total_tokens, total_cost, cost_per_1k_tokens,
+        input_output_ratio, cache_hit_ratio, message_count
+    """
+    date_clause, date_params = _build_date_filter(start_date, end_date)
+    sql = f"""
+        SELECT
+            {_coalesce_model()} AS model,
+            {_coalesce_provider()} AS provider,
+            COALESCE(SUM(CAST(json_extract(data, '$.tokens.input')       AS INTEGER)), 0)
+            + COALESCE(SUM(CAST(json_extract(data, '$.tokens.output')      AS INTEGER)), 0)
+            + COALESCE(SUM(CAST(json_extract(data, '$.tokens.reasoning')   AS INTEGER)), 0)
+            + COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.read')  AS INTEGER)), 0)
+            + COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.write') AS INTEGER)), 0)
+            AS total_tokens,
+            COALESCE(SUM(CAST(json_extract(data, '$.cost') AS REAL)), 0) AS total_cost,
+            CASE WHEN COALESCE(SUM(CAST(json_extract(data, '$.cost') AS REAL)), 0) > 0
+                 AND SUM(CAST(json_extract(data, '$.tokens.input') AS INTEGER))
+                 + SUM(CAST(json_extract(data, '$.tokens.output') AS INTEGER)) > 0
+            THEN (COALESCE(SUM(CAST(json_extract(data, '$.cost') AS REAL)), 0) * 1000.0)
+                 / (SUM(CAST(json_extract(data, '$.tokens.input') AS INTEGER))
+                    + SUM(CAST(json_extract(data, '$.tokens.output') AS INTEGER)))
+            ELSE NULL
+            END AS cost_per_1k_tokens,
+            CASE WHEN SUM(CAST(json_extract(data, '$.tokens.output') AS INTEGER)) > 0
+            THEN CAST(SUM(CAST(json_extract(data, '$.tokens.input') AS INTEGER)) AS REAL)
+                 / SUM(CAST(json_extract(data, '$.tokens.output') AS INTEGER))
+            ELSE NULL
+            END AS input_output_ratio,
+            CASE WHEN SUM(CAST(json_extract(data, '$.tokens.cache.read') AS INTEGER))
+                 + SUM(CAST(json_extract(data, '$.tokens.input') AS INTEGER)) > 0
+            THEN CAST(SUM(CAST(json_extract(data, '$.tokens.cache.read') AS INTEGER)) AS REAL)
+                 / (SUM(CAST(json_extract(data, '$.tokens.cache.read') AS INTEGER))
+                    + SUM(CAST(json_extract(data, '$.tokens.input') AS INTEGER)))
+            ELSE NULL
+            END AS cache_hit_ratio,
+            COUNT(*) AS message_count
+        FROM message
+        WHERE json_extract(data, '$.tokens.input') IS NOT NULL
+        {('AND ' + date_clause) if date_clause else ''}
+        GROUP BY model, provider
+        ORDER BY total_tokens DESC
+    """
+    return [dict(r) for r in conn.execute(sql, date_params).fetchall()]
+
+
+def get_usage_heatmap(
+    conn: sqlite3.Connection,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[dict[str, Any]]:
+    """Return message count and token volume by day-of-week x hour (UTC).
+
+    Returns flat rows with day_of_week (string '0'-'6', Sunday=0),
+    hour (string '00'-'23'), message_count, total_tokens.
+    Frontend pivots to 7x24 heatmap grid.
+    """
+    date_clause, date_params = _build_date_filter(start_date, end_date)
+    sql = f"""
+        SELECT
+            strftime('%w', datetime(time_created / 1000, 'unixepoch')) AS day_of_week,
+            strftime('%H', datetime(time_created / 1000, 'unixepoch')) AS hour,
+            COUNT(*) AS message_count,
+            COALESCE(SUM(CAST(json_extract(data, '$.tokens.input')       AS INTEGER)), 0)
+            + COALESCE(SUM(CAST(json_extract(data, '$.tokens.output')      AS INTEGER)), 0)
+            + COALESCE(SUM(CAST(json_extract(data, '$.tokens.reasoning')   AS INTEGER)), 0)
+            + COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.read')  AS INTEGER)), 0)
+            + COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.write') AS INTEGER)), 0)
+            AS total_tokens
+        FROM message
+        WHERE json_extract(data, '$.tokens.input') IS NOT NULL
+        {('AND ' + date_clause) if date_clause else ''}
+        GROUP BY day_of_week, hour
+        ORDER BY day_of_week, hour
+    """
+    return [dict(r) for r in conn.execute(sql, date_params).fetchall()]
+
+
+def get_top_sessions(
+    conn: sqlite3.Connection,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    """Return top N sessions by total token consumption.
+
+    JOINs message → session → project. Derives project name from worktree.
+    """
+    date_clause, date_params = _build_date_filter(start_date, end_date, col="m.time_created")
+    sql = f"""
+        SELECT
+            s.id,
+            s.title,
+            s.time_created,
+            p.worktree,
+            COUNT(*) AS message_count,
+            COALESCE(SUM(CAST(json_extract(m.data, '$.tokens.input')       AS INTEGER)), 0)
+            + COALESCE(SUM(CAST(json_extract(m.data, '$.tokens.output')      AS INTEGER)), 0)
+            + COALESCE(SUM(CAST(json_extract(m.data, '$.tokens.reasoning')   AS INTEGER)), 0)
+            + COALESCE(SUM(CAST(json_extract(m.data, '$.tokens.cache.read')  AS INTEGER)), 0)
+            + COALESCE(SUM(CAST(json_extract(m.data, '$.tokens.cache.write') AS INTEGER)), 0)
+            AS total_tokens,
+            COALESCE(SUM(CAST(json_extract(m.data, '$.cost') AS REAL)), 0) AS total_cost
+        FROM message m
+        JOIN session s ON s.id = m.session_id
+        JOIN project p ON p.id = s.project_id
+        WHERE json_extract(m.data, '$.tokens.input') IS NOT NULL
+        {('AND ' + date_clause) if date_clause else ''}
+        GROUP BY s.id
+        ORDER BY total_tokens DESC
+        LIMIT ?
+    """
+    params: list[Any] = date_params + [limit]
+    rows = conn.execute(sql, params).fetchall()
+    result = []
+    for r in rows:
+        d = dict(r)
+        d["project"] = _project_name_from_worktree(d.pop("worktree"))
+        d.pop("name", None)  # project.name is always NULL
+        result.append(d)
+    return result
+
+
+def get_cache_efficiency(
+    conn: sqlite3.Connection,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[dict[str, Any]]:
+    """Return daily cache efficiency time-series.
+    
+    Computes cache_hit_ratio = cache_read / (cache_read + input) per day.
+    Returns NULL when both cache_read and input are 0.
+    Sorted by date ascending.
+    """
+    date_clause, date_params = _build_date_filter(start_date, end_date)
+    sql = f"""
+        SELECT
+            strftime('%Y-%m-%d', datetime(time_created / 1000, 'unixepoch')) AS date,
+            COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.read')  AS INTEGER)), 0) AS cache_read,
+            COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.write') AS INTEGER)), 0) AS cache_write,
+            COALESCE(SUM(CAST(json_extract(data, '$.tokens.input')       AS INTEGER)), 0) AS input,
+            CASE WHEN COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.read') AS INTEGER)), 0)
+                 + COALESCE(SUM(CAST(json_extract(data, '$.tokens.input') AS INTEGER)), 0) > 0
+            THEN CAST(COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.read') AS INTEGER)), 0) AS REAL)
+                 / (COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.read') AS INTEGER)), 0)
+                    + COALESCE(SUM(CAST(json_extract(data, '$.tokens.input') AS INTEGER)), 0))
+            ELSE NULL
+            END AS cache_hit_ratio
+        FROM message
+        WHERE json_extract(data, '$.tokens.input') IS NOT NULL
+        {('AND ' + date_clause) if date_clause else ''}
+        GROUP BY date
+        ORDER BY date ASC
+    """
+    return [dict(r) for r in conn.execute(sql, date_params).fetchall()]
