@@ -12,7 +12,12 @@ charts in the browser — never writes to the database.
 ## 功能 / Features
 
 - **概览卡片** — 总 Token 数、总费用、会话数、消息数
-- **时间序列图** — 按日/周/月聚合的 Input / Output / Reasoning / Cache 堆叠面积图
+- **效率卡片** — 平均每千 Token 成本、缓存命中率、Top Agent
+- **使用热力图** — 按小时 x 星期展示使用密度
+- **热门会话排行** — 按 Token 消耗排序的 Top 10 会话
+- **Agent 分布** — 各 Agent 的 Token 消耗排行榜
+- **缓存效率趋势** — 每日缓存命中率变化
+- **紧凑时间序列** — 底部 150px 迷你折线图（仅总 Token）
 - **模型分布** — 按模型（model + provider）的 Token 消耗排行榜
 - **项目分布** — 按项目（从 worktree 自动推导项目名）的 Token 消耗排行榜
 - **费用分布** — 各模型的费用柱状图
@@ -20,10 +25,15 @@ charts in the browser — never writes to the database.
 | Chart | Description |
 |-------|-------------|
 | Overview cards | Total tokens, cost, sessions, messages |
-| Time-series | Stacked area chart by day/week/month |
-| Model breakdown | Horizontal bar by model + provider |
-| Project breakdown | Horizontal bar by project (derived from worktree) |
-| Cost breakdown | Bar chart by model |
+| Efficiency cards | Avg cost/1K, cache hit rate, top agent |
+| Usage heatmap | Hour x day-of-week density (7x24 grid) |
+| Top sessions | Top 10 sessions leaderboard |
+| Agent breakdown | Token usage by agent |
+| Cache efficiency | Daily cache hit ratio trend |
+| Model breakdown | Tokens by model + provider |
+| Project breakdown | Tokens by project (from worktree) |
+| Cost breakdown | Cost by model |
+| Mini time-series | Single-line total token trend (150px) |
 
 ---
 
@@ -73,7 +83,7 @@ PORT=58020 uv run python -m app.main
 uv run pytest -v
 ```
 
-共 45 个测试用例（25 个单元测试 + 20 个集成测试），全部验证通过。
+共 99 个测试用例（57 个单元测试 + 42 个集成测试），全部验证通过。
 
 ---
 
@@ -97,15 +107,15 @@ opencode_token_dashboard/
 ├── app/                    # Web 应用包
 │   ├── __init__.py
 │   ├── main.py             # FastAPI 入口（uvicorn）
-│   ├── routes.py           # 1 个 HTML + 5 个 JSON API 端点
-│   ├── db.py               # 7 个只读 SQLite 查询函数
+│   ├── routes.py           # 1 个 HTML + 统一 /api/data?view=... 端点（10 种视图）
+│   ├── db.py               # 10 个只读 SQLite 查询函数
 │   └── templates/
-│       └── index.html      # ECharts 仪表盘页面（~1000 行，深色主题，5 张图表）
+│       └── index.html      # ECharts 仪表盘页面（紧凑 2 列网格布局，8 个面板 + 7 张卡片）
 ├── tests/
 │   ├── __init__.py
-│   ├── conftest.py         # 测试夹具（13 条消息的样本数据库）
-│   ├── test_db.py          # 25 个数据库查询测试
-│   └── test_routes.py      # 20 个 API 路由测试
+│   ├── conftest.py         # 测试夹具（21 条消息的样本数据库）
+│   ├── test_db.py          # 57 个数据库查询测试
+│   └── test_routes.py      # 42 个 API 路由测试
 ├── pyproject.toml          # uv 项目配置
 ├── AGENTS.md               # 项目知识库（AI 辅助参考）
 └── README.md
@@ -116,11 +126,17 @@ opencode_token_dashboard/
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/` | 仪表盘 HTML 页面 |
-| `GET` | `/api/overview` | 总览统计数据（Token 数、费用、会话数、消息数） |
-| `GET` | `/api/tokens-by-date?granularity=day` | 按日/周/月聚合的 Token 消耗 |
-| `GET` | `/api/tokens-by-model` | 各模型 Token 消耗排行 |
-| `GET` | `/api/tokens-by-project` | 各项目 Token 消耗排行 |
-| `GET` | `/api/cost-breakdown` | 各模型费用分布 |
+| `GET` | `/api/data?view=overview` | 总览统计数据 |
+| `GET` | `/api/data?view=tokens-by-date&granularity=day` | 按日/周/月聚合的 Token 消耗 |
+| `GET` | `/api/data?view=tokens-by-model` | 各模型 Token 消耗排行 |
+| `GET` | `/api/data?view=tokens-by-project` | 各项目 Token 消耗排行 |
+| `GET` | `/api/data?view=cost-breakdown` | 各模型费用分布 |
+| `GET` | `/api/data?view=agent-breakdown` | 各 Agent Token 消耗排行 |
+| `GET` | `/api/data?view=model-efficiency` | 各模型效率（成本/IO/缓存比） |
+| `GET` | `/api/data?view=usage-heatmap` | 使用热力图数据（小时 x 星期） |
+| `GET` | `/api/data?view=top-sessions&limit=10` | Top N 会话排行 |
+| `GET` | `/api/data?view=cache-efficiency` | 每日缓存效率趋势 |
+| `GET` | `/api/overview`（等 5 个） | 向后兼容的 307 重定向至 `/api/data?view=...` |
 
 ---
 
