@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -355,7 +356,8 @@ def get_cost_breakdown(
     end_date: str | None = None,
 ) -> list[dict[str, Any]]:
     """Cost aggregated by model + provider, sorted by cost descending.
-    Optionally filtered by date range.
+    Optionally filtered by date range.  Token count is computed inline
+    in a single query (no N+1).
     """
     date_clause, date_params = _build_date_filter(start_date, end_date)
     sql = f"""
@@ -363,36 +365,7 @@ def get_cost_breakdown(
             COALESCE(json_extract(data, '$.modelID'),   'unknown')  AS model,
             COALESCE(json_extract(data, '$.providerID'), 'unknown') AS provider,
             COALESCE(SUM(CAST(json_extract(data, '$.cost') AS REAL)), 0) AS cost,
-            COUNT(*) AS message_count
-        FROM message
-        {('WHERE ' + date_clause) if date_clause else ''}
-        GROUP BY model, provider
-        ORDER BY cost DESC
-    """
-    rows = conn.execute(sql, date_params).fetchall()
-    result = []
-    for r in rows:
-        d = dict(r)
-        d["token_count"] = _get_model_token_count(
-            conn, d["model"], d["provider"],
-            start_date=start_date, end_date=end_date,
-        )
-        result.append(d)
-    return result
-
-
-def _get_model_token_count(
-    conn: sqlite3.Connection,
-    model: str,
-    provider: str,
-    start_date: str | None = None,
-    end_date: str | None = None,
-) -> int:
-    """Return total tokens for a given model + provider pair,
-    optionally filtered by date range."""
-    date_clause, date_params = _build_date_filter(start_date, end_date)
-    sql = f"""
-        SELECT
+            COUNT(*) AS message_count,
             COALESCE(SUM(CAST(json_extract(data, '$.tokens.input')       AS INTEGER)), 0)
             + COALESCE(SUM(CAST(json_extract(data, '$.tokens.output')      AS INTEGER)), 0)
             + COALESCE(SUM(CAST(json_extract(data, '$.tokens.reasoning')   AS INTEGER)), 0)
@@ -400,13 +373,11 @@ def _get_model_token_count(
             + COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.write') AS INTEGER)), 0)
             AS token_count
         FROM message
-        WHERE json_extract(data, '$.modelID') = ?
-          AND json_extract(data, '$.providerID') = ?
-        {('AND ' + date_clause) if date_clause else ''}
+        {('WHERE ' + date_clause) if date_clause else ''}
+        GROUP BY model, provider
+        ORDER BY cost DESC
     """
-    params: list[Any] = [model, provider] + date_params
-    row = conn.execute(sql, params).fetchone()
-    return row["token_count"] if row else 0
+    return [dict(r) for r in conn.execute(sql, date_params).fetchall()]
 
 
 # ---------------------------------------------------------------------------
@@ -612,3 +583,52 @@ def get_cache_efficiency(
         ORDER BY date ASC
     """
     return [dict(r) for r in conn.execute(sql, date_params).fetchall()]
+
+
+# ---------------------------------------------------------------------------
+# 11. Consolidated data (all views in one call)
+# ---------------------------------------------------------------------------
+
+
+def get_all_data(
+    conn: sqlite3.Connection,
+    granularity: str = "day",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    limit: int = 10,
+) -> dict[str, Any]:
+    """Run all 10 dashboard queries in PARALLEL and return a consolidated
+    dict keyed by snake_case view name.
+
+    Extracts the DB path from *conn*, then spawns thread-local connections
+    so all queries execute concurrently (SQLite WAL mode supports concurrent
+    reads).  This cuts total response time from the sum of query times to
+    approximately the *max* query time.
+    """
+    db_path = conn.execute("PRAGMA database_list").fetchone()[2]
+
+    def _query(func, *args, **kw):
+        """Open a fresh read-only connection and run *func* against it."""
+        c = sqlite3.connect(db_path, uri=True)
+        c.row_factory = sqlite3.Row
+        c.execute("PRAGMA query_only = 1")
+        try:
+            return func(c, *args, **kw)
+        finally:
+            c.close()
+
+    kwargs = {"start_date": start_date, "end_date": end_date}
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        fut: dict[str, Any] = {}
+        fut["overview"] = pool.submit(_query, get_overview_stats, **kwargs)
+        fut["tokens_by_date"] = pool.submit(_query, get_tokens_by_date, granularity, **kwargs)
+        fut["tokens_by_model"] = pool.submit(_query, get_tokens_by_model, **kwargs)
+        fut["tokens_by_project"] = pool.submit(_query, get_tokens_by_project, **kwargs)
+        fut["cost_breakdown"] = pool.submit(_query, get_cost_breakdown, **kwargs)
+        fut["agent_breakdown"] = pool.submit(_query, get_agent_breakdown, **kwargs)
+        fut["model_efficiency"] = pool.submit(_query, get_model_efficiency, **kwargs)
+        fut["usage_heatmap"] = pool.submit(_query, get_usage_heatmap, **kwargs)
+        fut["top_sessions"] = pool.submit(_query, get_top_sessions, limit=limit, **kwargs)
+        fut["cache_efficiency"] = pool.submit(_query, get_cache_efficiency, **kwargs)
+        return {k: f.result() for k, f in fut.items()}

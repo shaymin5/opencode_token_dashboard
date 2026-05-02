@@ -7,6 +7,7 @@ import sqlite3
 import pytest
 
 from app.db import (
+    get_all_data,
     get_cost_breakdown,
     get_db_path,
     get_connection,
@@ -535,3 +536,60 @@ class TestGetCacheEfficiency:
             for r in data:
                 if r["cache_hit_ratio"] is not None:
                     assert 0 <= r["cache_hit_ratio"] <= 1
+
+
+# ═══════════════════════════════════════════════════════════════════
+# get_all_data (consolidated endpoint)
+# ═══════════════════════════════════════════════════════════════════
+
+class TestGetAllData:
+    """Tests for the consolidated get_all_data() function."""
+
+    def test_returns_dict_with_all_10_keys(self, test_conn):
+        data = get_all_data(test_conn)
+        expected_keys = {
+            "overview", "tokens_by_date", "tokens_by_model",
+            "tokens_by_project", "cost_breakdown", "agent_breakdown",
+            "model_efficiency", "usage_heatmap", "top_sessions",
+            "cache_efficiency",
+        }
+        assert isinstance(data, dict)
+        assert data.keys() == expected_keys
+
+    def test_overview_has_expected_shape(self, test_conn):
+        data = get_all_data(test_conn)
+        ov = data["overview"]
+        for key in ("total_tokens", "total_cost", "total_sessions", "total_messages"):
+            assert key in ov
+            assert isinstance(ov[key], (int, float))
+
+    def test_tokens_by_date_is_list(self, test_conn):
+        data = get_all_data(test_conn)
+        assert isinstance(data["tokens_by_date"], list)
+
+    def test_cost_breakdown_each_has_token_count(self, test_conn):
+        data = get_all_data(test_conn)
+        for row in data["cost_breakdown"]:
+            assert "token_count" in row
+            assert isinstance(row["token_count"], int)
+
+    def test_top_sessions_respects_limit(self, test_conn):
+        data = get_all_data(test_conn, limit=5)
+        assert len(data["top_sessions"]) <= 5
+
+    def test_date_filter_propagates(self, test_conn):
+        full = get_all_data(test_conn)
+        filtered = get_all_data(test_conn, start_date="2026-03-01", end_date="2026-04-30")
+        assert filtered["overview"]["total_messages"] < full["overview"]["total_messages"]
+        assert filtered["overview"]["total_sessions"] < full["overview"]["total_sessions"]
+
+    def test_empty_filter_same_as_no_filter(self, test_conn):
+        full = get_all_data(test_conn)
+        filtered = get_all_data(test_conn, start_date=None, end_date=None)
+        assert full == filtered
+
+    def test_granularity_reflected_in_tokens_by_date(self, test_conn):
+        day_data = get_all_data(test_conn, granularity="day")
+        month_data = get_all_data(test_conn, granularity="month")
+        # Month aggregation produces fewer rows than day aggregation
+        assert len(day_data["tokens_by_date"]) >= len(month_data["tokens_by_date"])

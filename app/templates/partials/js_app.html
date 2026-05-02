@@ -17,96 +17,129 @@ var DASHBOARD = window.DASHBOARD || {};
   /* ─── GRANULARITY ─── */
   DASHBOARD.currentGranularity = 'day';
 
-  /* ─── LOAD ALL DATA ─── */
+  /* ─── HELPERS ─── */
+
+  function populateCards(all) {
+    var ov = all.overview;
+    el('card-tokens').querySelector('.card-value').textContent = fmtNum(ov.total_tokens);
+    el('card-cost').querySelector('.card-value').textContent = fmtCost(ov.total_cost);
+    el('card-sessions').querySelector('.card-value').textContent = fmtNum(ov.total_sessions);
+    el('card-messages').querySelector('.card-value').textContent = fmtNum(ov.total_messages);
+
+    var paid = ov.paid_messages || 0;
+    el('card-cost-secondary').textContent = paid + ' paid ' + (paid === 1 ? 'message' : 'messages');
+
+    var now = new Date();
+    el('refresh-time').textContent = 'Last refresh: ' + now.toLocaleString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: false
+    });
+
+    // Efficiency mini cards from model_efficiency
+    var me = all.model_efficiency;
+    if (me && me.length) {
+      var totalCost = 0, totalTokens = 0, weightedCacheRate = 0, cacheWeight = 0;
+      me.forEach(function(d) {
+        totalCost += d.total_cost || 0;
+        totalTokens += d.total_tokens || 0;
+        if (d.cache_hit_ratio != null) {
+          weightedCacheRate += (d.cache_hit_ratio || 0) * (d.total_tokens || 0);
+          cacheWeight += d.total_tokens || 0;
+        }
+      });
+      var avgCost = totalTokens > 0 ? (totalCost / totalTokens * 1000) : 0;
+      el('card-cost-per-1k').querySelector('.card-value').textContent = fmtCost(avgCost);
+      var cacheRate = cacheWeight > 0 ? (weightedCacheRate / cacheWeight) : 0;
+      el('card-cache-rate').querySelector('.card-value').textContent = (cacheRate * 100).toFixed(1) + '%';
+    }
+
+    // Top agent card from agent_breakdown
+    var ab = all.agent_breakdown;
+    if (ab && ab.length > 0) {
+      el('card-top-agent').querySelector('.card-value').textContent = ab[0].agent;
+    }
+  }
+
+  function renderAllCharts(all) {
+    var renderMap = [
+      { key: 'usage_heatmap',    dom: 'heatmap-chart',     render: DASHBOARD.renderUsageHeatmap },
+      { key: 'top_sessions',     dom: 'top-sessions-chart', render: DASHBOARD.renderTopSessions },
+      { key: 'tokens_by_model',  dom: 'model-chart',       render: DASHBOARD.renderModelBreakdown },
+      { key: 'tokens_by_project',dom: 'project-chart',     render: DASHBOARD.renderProjectBreakdown },
+      { key: 'agent_breakdown',  dom: 'agent-chart',       render: DASHBOARD.renderAgentBreakdown },
+      { key: 'cost_breakdown',   dom: 'cost-chart',        render: DASHBOARD.renderCostBreakdown },
+      { key: 'cache_efficiency', dom: 'cache-chart',       render: DASHBOARD.renderCacheEfficiency },
+    ];
+
+    renderMap.forEach(function(p) {
+      var chart = charts[p.dom];
+      if (!chart) return;
+      try {
+        p.render(all[p.key] || []);
+      } catch(e) {
+        console.error(p.key + ' render error:', e);
+        showOverlay(chart, 'error');
+      }
+    });
+  }
+
+  function showAllLoading() {
+    var panelIds = [
+      'heatmap-chart', 'top-sessions-chart', 'model-chart', 'project-chart',
+      'agent-chart', 'cost-chart', 'cache-chart', 'mini-ts-chart'
+    ];
+    panelIds.forEach(function(id) {
+      var chart = charts[id];
+      if (chart) showOverlay(chart, 'loading');
+    });
+  }
+
+  function hideAllLoading() {
+    var panelIds = [
+      'heatmap-chart', 'top-sessions-chart', 'model-chart', 'project-chart',
+      'agent-chart', 'cost-chart', 'cache-chart', 'mini-ts-chart'
+    ];
+    panelIds.forEach(function(id) {
+      var chart = charts[id];
+      if (chart) hideOverlays(chart);
+    });
+  }
+
+  function showAllError() {
+    var panelIds = [
+      'heatmap-chart', 'top-sessions-chart', 'model-chart', 'project-chart',
+      'agent-chart', 'cost-chart', 'cache-chart', 'mini-ts-chart'
+    ];
+    panelIds.forEach(function(id) {
+      var chart = charts[id];
+      if (chart) showOverlay(chart, 'error');
+    });
+  }
+
+  /* ─── LOAD ALL DATA (single consolidated fetch) ─── */
   DASHBOARD.loadAllData = function(granularity, dp) {
     dp = dp || dateParams();
+    var params = Object.assign({view: 'all', granularity: granularity || 'day'}, dp || {});
 
-    // 1. Overview (4 main cards)
-    apiFetch('/api/data', Object.assign({view: 'overview'}, dp || {}))
-      .then(function(data) {
-        el('card-tokens').querySelector('.card-value').textContent = fmtNum(data.total_tokens);
-        el('card-cost').querySelector('.card-value').textContent = fmtCost(data.total_cost);
-        el('card-sessions').querySelector('.card-value').textContent = fmtNum(data.total_sessions);
-        el('card-messages').querySelector('.card-value').textContent = fmtNum(data.total_messages);
-
-        var paid = data.paid_messages || 0;
-        el('card-cost-secondary').textContent = paid + ' paid ' + (paid === 1 ? 'message' : 'messages');
-
-        var now = new Date();
-        el('refresh-time').textContent = 'Last refresh: ' + now.toLocaleString('en-US', {
-          month: 'short', day: 'numeric', year: 'numeric',
-          hour: '2-digit', minute: '2-digit', second: '2-digit',
-          hour12: false
-        });
-      }).catch(function(err) {
-        console.error('Overview fetch failed:', err);
+    showAllLoading();
+    apiFetch('/api/data', params)
+      .then(function(all) {
+        hideAllLoading();
+        populateCards(all);
+        if (all.tokens_by_date) {
+          DASHBOARD.renderMiniTimeSeries(all.tokens_by_date);
+        }
+        renderAllCharts(all);
+      })
+      .catch(function(err) {
+        console.error('Dashboard data fetch failed:', err);
         ['tokens','cost','sessions','messages'].forEach(function(k) {
           var card = el('card-' + k);
           if (card) card.querySelector('.card-value').textContent = 'Error';
         });
+        showAllError();
       });
-
-    // 2. Model efficiency (for efficiency mini cards: cost-per-1k, cache-rate)
-    apiFetch('/api/data', Object.assign({view: 'model-efficiency'}, dp || {}))
-      .then(function(data) {
-        if (!data || !data.length) return;
-        var totalCost = 0, totalTokens = 0, weightedCacheRate = 0, cacheWeight = 0;
-        data.forEach(function(d) {
-          totalCost += d.total_cost || 0;
-          totalTokens += d.total_tokens || 0;
-          if (d.cache_hit_ratio != null) {
-            weightedCacheRate += (d.cache_hit_ratio || 0) * (d.total_tokens || 0);
-            cacheWeight += d.total_tokens || 0;
-          }
-        });
-        var avgCost = totalTokens > 0 ? (totalCost / totalTokens * 1000) : 0;
-        el('card-cost-per-1k').querySelector('.card-value').textContent = fmtCost(avgCost);
-        var cacheRate = cacheWeight > 0 ? (weightedCacheRate / cacheWeight) : 0;
-        el('card-cache-rate').querySelector('.card-value').textContent = (cacheRate * 100).toFixed(1) + '%';
-      }).catch(function(err) {
-        console.error('Model efficiency fetch failed:', err);
-      });
-
-    // 3. Agent breakdown (for top agent card)
-    apiFetch('/api/data', Object.assign({view: 'agent-breakdown'}, dp || {}))
-      .then(function(data) {
-        if (data && data.length > 0) {
-          el('card-top-agent').querySelector('.card-value').textContent = data[0].agent;
-        }
-      }).catch(function(err) {
-        console.error('Agent breakdown fetch failed:', err);
-      });
-
-    // 4-10. All chart panels
-    var panelFetches = [
-      { view: 'usage-heatmap',     dom: 'heatmap-chart',     render: DASHBOARD.renderUsageHeatmap },
-      { view: 'top-sessions',      dom: 'top-sessions-chart', render: DASHBOARD.renderTopSessions, params: {limit: 10} },
-      { view: 'tokens-by-model',   dom: 'model-chart',       render: DASHBOARD.renderModelBreakdown },
-      { view: 'tokens-by-project', dom: 'project-chart',     render: DASHBOARD.renderProjectBreakdown },
-      { view: 'agent-breakdown',   dom: 'agent-chart',       render: DASHBOARD.renderAgentBreakdown },
-      { view: 'cost-breakdown',    dom: 'cost-chart',        render: DASHBOARD.renderCostBreakdown },
-      { view: 'cache-efficiency',  dom: 'cache-chart',       render: DASHBOARD.renderCacheEfficiency },
-    ];
-
-    panelFetches.forEach(function(p) {
-      var chart = charts[p.dom];
-      if (!chart) return;
-      var params = Object.assign({view: p.view}, dp || {}, p.params || {});
-      showOverlay(chart, 'loading');
-      apiFetch('/api/data', params)
-        .then(function(data) { hideOverlays(chart); p.render(data); })
-        .catch(function(err) { console.error(p.view + ' failed:', err); showOverlay(chart, 'error'); });
-    });
-
-    // Mini time-series
-    var miniChart = charts['mini-ts-chart'];
-    if (miniChart) {
-      var tsParams = Object.assign({view: 'tokens-by-date', granularity: granularity || 'day'}, dp || {});
-      showOverlay(miniChart, 'loading');
-      apiFetch('/api/data', tsParams)
-        .then(function(data) { hideOverlays(miniChart); DASHBOARD.renderMiniTimeSeries(data); })
-        .catch(function(err) { console.error('mini-ts failed:', err); showOverlay(miniChart, 'error'); });
-    }
   };
 
   /* ─── GRANULARITY TOGGLE ─── */
@@ -121,15 +154,21 @@ var DASHBOARD = window.DASHBOARD || {};
       this.classList.add('active');
       DASHBOARD.currentGranularity = g;
 
+      var dp = dateParams();
+      var params = Object.assign({view: 'all', granularity: g}, dp || {});
       var miniChart = charts['mini-ts-chart'];
-      if (miniChart) {
-        var dp = dateParams();
-        var tsParams = Object.assign({view: 'tokens-by-date', granularity: g}, dp || {});
-        showOverlay(miniChart, 'loading');
-        apiFetch('/api/data', tsParams)
-          .then(function(data) { hideOverlays(miniChart); DASHBOARD.renderMiniTimeSeries(data); })
-          .catch(function(err) { console.error(err); showOverlay(miniChart, 'error'); });
-      }
+      if (miniChart) showOverlay(miniChart, 'loading');
+      apiFetch('/api/data', params)
+        .then(function(all) {
+          if (miniChart) hideOverlays(miniChart);
+          if (all.tokens_by_date) {
+            DASHBOARD.renderMiniTimeSeries(all.tokens_by_date);
+          }
+        })
+        .catch(function(err) {
+          console.error(err);
+          if (miniChart) showOverlay(miniChart, 'error');
+        });
     });
   });
 

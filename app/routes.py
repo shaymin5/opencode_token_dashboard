@@ -13,6 +13,7 @@ from jinja2 import Environment, FileSystemLoader
 from sqlite3 import Connection
 
 from app.db import (
+    get_all_data,
     get_connection,
     get_db_path,
     get_overview_stats,
@@ -30,10 +31,11 @@ from app.db import (
 ViewName = Literal[
     "overview", "tokens-by-date", "tokens-by-model", "tokens-by-project",
     "cost-breakdown", "agent-breakdown", "model-efficiency", "usage-heatmap",
-    "top-sessions", "cache-efficiency",
+    "top-sessions", "cache-efficiency", "all",
 ]
 
 VIEW_DISPATCH: dict[str, str] = {
+    "all": "get_all_data",
     "overview": "get_overview_stats",
     "tokens-by-date": "get_tokens_by_date",
     "tokens-by-model": "get_tokens_by_model",
@@ -114,7 +116,9 @@ async def api_data(
         )
 
     try:
-        if view == "tokens-by-date":
+        if view == "all":
+            return func(conn, granularity=granularity, start_date=start_date, end_date=end_date, limit=limit)
+        elif view == "tokens-by-date":
             return func(conn, granularity=granularity, start_date=start_date, end_date=end_date)
         elif view == "top-sessions":
             return func(conn, start_date=start_date, end_date=end_date, limit=limit)

@@ -370,6 +370,59 @@ class TestApiModelEfficiency:
 
 
 # ═══════════════════════════════════════════════════════════════════
+# /api/data?view=all
+# ═══════════════════════════════════════════════════════════════════
+
+class TestApiAllData:
+    def test_all_view_returns_200(self, client):
+        resp = client.get("/api/data?view=all")
+        assert resp.status_code == 200
+
+    def test_all_view_has_10_keys(self, client):
+        resp = client.get("/api/data?view=all")
+        data = resp.json()
+        expected_keys = {
+            "overview", "tokens_by_date", "tokens_by_model",
+            "tokens_by_project", "cost_breakdown", "agent_breakdown",
+            "model_efficiency", "usage_heatmap", "top_sessions",
+            "cache_efficiency",
+        }
+        assert data.keys() == expected_keys
+
+    def test_all_overview_shape(self, client):
+        resp = client.get("/api/data?view=all")
+        ov = resp.json()["overview"]
+        for key in ("total_tokens", "total_cost", "total_sessions", "total_messages"):
+            assert key in ov
+
+    def test_all_date_filter_reflected(self, client):
+        full = client.get("/api/data?view=all").json()
+        filtered = client.get("/api/data?view=all&start_date=2026-03-01&end_date=2026-04-30").json()
+        assert filtered["overview"]["total_messages"] < full["overview"]["total_messages"]
+        assert filtered["overview"]["total_sessions"] < full["overview"]["total_sessions"]
+
+    def test_all_granularity_reflected(self, client):
+        day = client.get("/api/data?view=all&granularity=day").json()
+        month = client.get("/api/data?view=all&granularity=month").json()
+        assert len(day["tokens_by_date"]) >= len(month["tokens_by_date"])
+
+    def test_all_limit_reflected(self, client):
+        data = client.get("/api/data?view=all&limit=5").json()
+        assert len(data["top_sessions"]) <= 5
+
+    def test_individual_views_still_work(self, client):
+        """Backward compat: all 10 individual views still return 200."""
+        views = [
+            "overview", "tokens-by-date", "tokens-by-model", "tokens-by-project",
+            "cost-breakdown", "agent-breakdown", "model-efficiency", "usage-heatmap",
+            "top-sessions", "cache-efficiency",
+        ]
+        for v in views:
+            resp = client.get(f"/api/data?view={v}")
+            assert resp.status_code == 200, f"view={v} returned {resp.status_code}"
+
+
+# ═══════════════════════════════════════════════════════════════════
 # /api/data (unified endpoint — not yet implemented)
 # ═══════════════════════════════════════════════════════════════════
 
