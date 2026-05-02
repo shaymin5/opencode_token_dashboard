@@ -1,0 +1,38 @@
+<!-- ═════════════════════ HEADER ═════════════════════ -->
+<header class="header">
+  <div class="header-inner">
+    <div>
+      <h1>OpenCode Token Dashboard</h1>
+      <div class="subtitle">
+        <span class="dot"></span>
+        {% if db_path %}<span>{{ db_path }}</span>{% else %}<span id="db-path-label">opencode.db</span>{% endif %}
+        <span aria-hidden="true">&middot;</span>
+        <span id="refresh-time">Initializing...</span>
+      </div>
+    </div>
+    <div class="header-controls">
+      <div class="granularity-toggle" id="granularity-toggle">
+        <button data-granularity="day" class="active">Day</button>
+        <button data-granularity="week">Week</button>
+        <button data-granularity="month">Month</button>
+      </div>
+      <div class="time-range-bar" id="time-range-bar">
+        <div class="range-presets" id="range-presets">
+          <button data-range="7d">7D</button>
+          <button data-range="30d">30D</button>
+          <button data-range="90d">90D</button>
+          <button data-range="all" class="active">All</button>
+        </div>
+        <div class="range-separator"></div>
+        <div class="date-input-group">
+          <label for="start-date">From</label>
+          <input type="date" id="start-date">
+        </div>
+        <div class="date-input-group">
+          <label for="end-date">To</label>
+          <input type="date" id="end-date">
+        </div>
+      </div>
+    </div>
+  </div>
+</header>

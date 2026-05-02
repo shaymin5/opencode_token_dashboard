@@ -1,0 +1,81 @@
+<script>
+var DASHBOARD = window.DASHBOARD || {};
+(function() {
+  'use strict';
+
+  var el = DASHBOARD.el;
+
+  /* ─── CHART FACTORY ─── */
+  DASHBOARD.charts = {};
+
+  DASHBOARD.initChart = function(domId, containerId, loadingId, errorId) {
+    var dom = el(domId);
+    if (!dom) return null;
+    var chart = echarts.init(dom, 'dark', {
+      renderer: 'canvas'
+    });
+    chart._meta = { containerId: containerId, loadingId: loadingId, errorId: errorId };
+    return chart;
+  };
+
+  DASHBOARD.showOverlay = function(chart, type) {
+    var meta = chart._meta;
+    ['loading', 'error'].forEach(function(t) {
+      var overlay = el(meta[t + 'Id']);
+      if (overlay) overlay.classList.add('hidden');
+    });
+    if (type) {
+      var overlay = el(meta[type + 'Id']);
+      if (overlay) overlay.classList.remove('hidden');
+    }
+  };
+
+  DASHBOARD.hideOverlays = function(chart) {
+    DASHBOARD.showOverlay(chart, null);
+  };
+
+  /* ─── BASE THEME WRAPPER ─── */
+  DASHBOARD.baseOption = function(overrides) {
+    var base = {
+      backgroundColor: 'transparent',
+      textStyle: { color: '#8b949e' },
+      grid: {
+        left: 12,
+        right: 24,
+        top: 48,
+        bottom: 12,
+        containLabel: true
+      },
+      tooltip: {
+        trigger: 'axis',
+        backgroundColor: 'rgba(22,27,34,0.95)',
+        borderColor: '#30363d',
+        textStyle: { color: '#e6edf3', fontSize: 12, fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif' },
+        confine: true,
+        extraCssText: 'box-shadow: 0 4px 16px rgba(0,0,0,0.5); border-radius: 6px; padding: 10px 14px;'
+      }
+    };
+    return Object.assign({}, base, overrides);
+  };
+
+  /* ─── INIT ALL CHARTS ─── */
+  var chartDefs = [
+    {dom: 'heatmap-chart', container: 'heatmap-container', loading: 'heatmap-loading', error: 'heatmap-error'},
+    {dom: 'top-sessions-chart', container: 'top-sessions-container', loading: 'top-sessions-loading', error: 'top-sessions-error'},
+    {dom: 'model-chart', container: 'model-container', loading: 'model-loading', error: 'model-error'},
+    {dom: 'project-chart', container: 'project-container', loading: 'project-loading', error: 'project-error'},
+    {dom: 'agent-chart', container: 'agent-container', loading: 'agent-loading', error: 'agent-error'},
+    {dom: 'cost-chart', container: 'cost-container', loading: 'cost-loading', error: 'cost-error'},
+    {dom: 'cache-chart', container: 'cache-container', loading: 'cache-loading', error: 'cache-error'},
+    {dom: 'mini-ts-chart', container: 'mini-ts-container', loading: 'mini-ts-loading', error: 'mini-ts-error'},
+  ];
+
+  chartDefs.forEach(function(def) {
+    var c = DASHBOARD.initChart(def.dom, def.container, def.loading, def.error);
+    if (c) DASHBOARD.charts[def.dom] = c;
+  });
+
+  DASHBOARD.allCharts = Object.keys(DASHBOARD.charts).map(function(k) { return DASHBOARD.charts[k]; }).filter(Boolean);
+
+})();
+</script>

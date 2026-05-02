@@ -1,0 +1,143 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.12, pytest-9.0.3, pluggy-1.6.0 -- D:\gameboy\opencode_token_dashboard\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: D:\gameboy\opencode_token_dashboard
+configfile: pyproject.toml
+plugins: anyio-4.13.0
+collecting ... collected 94 items
+
+tests/test_db.py::TestProjectNameFromWorktree::test_normal_path PASSED   [  1%]
+tests/test_db.py::TestProjectNameFromWorktree::test_root_worktree PASSED [  2%]
+tests/test_db.py::TestProjectNameFromWorktree::test_none_worktree PASSED [  3%]
+tests/test_db.py::TestProjectNameFromWorktree::test_empty_string PASSED  [  4%]
+tests/test_db.py::TestGetDbPath::test_returns_string PASSED              [  5%]
+tests/test_db.py::TestGetDbPath::test_env_var_overrides_default PASSED   [  6%]
+tests/test_db.py::TestGetConnection::test_sets_query_only PASSED         [  7%]
+tests/test_db.py::TestGetConnection::test_row_factory_is_sqlite3_row PASSED [  8%]
+tests/test_db.py::TestGetOverviewStats::test_returns_all_keys PASSED     [  9%]
+tests/test_db.py::TestGetOverviewStats::test_counts_are_correct PASSED   [ 10%]
+tests/test_db.py::TestGetTokensByDate::test_default_granularity_is_day PASSED [ 11%]
+tests/test_db.py::TestGetTokensByDate::test_month_granularity PASSED     [ 12%]
+tests/test_db.py::TestGetTokensByDate::test_week_granularity PASSED      [ 13%]
+tests/test_db.py::TestGetTokensByDate::test_aggregation_sums_match_overview PASSED [ 14%]
+tests/test_db.py::TestGetTokensByModel::test_returns_models_with_expected_keys PASSED [ 15%]
+tests/test_db.py::TestGetTokensByModel::test_multiple_models_present PASSED [ 17%]
+tests/test_db.py::TestGetTokensByModel::test_sorted_by_total_tokens_descending PASSED [ 18%]
+tests/test_db.py::TestGetTokensByProject::test_returns_projects_with_expected_keys PASSED [ 19%]
+tests/test_db.py::TestGetTokensByProject::test_project_names_from_worktree PASSED [ 20%]
+tests/test_db.py::TestGetTokensByProject::test_global_project PASSED     [ 21%]
+tests/test_db.py::TestGetTokensByProject::test_session_counts PASSED     [ 22%]
+tests/test_db.py::TestGetCostBreakdown::test_returns_entries_with_expected_keys PASSED [ 23%]
+tests/test_db.py::TestGetCostBreakdown::test_sorted_by_cost_descending PASSED [ 24%]
+tests/test_db.py::TestGetCostBreakdown::test_includes_zero_cost_models PASSED [ 25%]
+tests/test_db.py::TestGetCostBreakdown::test_highest_cost_model_has_correct_token_count PASSED [ 26%]
+tests/test_db.py::TestGetOverviewStatsWithDateFilter::test_no_filter_backward_compat PASSED [ 27%]
+tests/test_db.py::TestGetOverviewStatsWithDateFilter::test_start_date_only PASSED [ 28%]
+tests/test_db.py::TestGetOverviewStatsWithDateFilter::test_end_date_only PASSED [ 29%]
+tests/test_db.py::TestGetOverviewStatsWithDateFilter::test_both_dates PASSED [ 30%]
+tests/test_db.py::TestGetOverviewStatsWithDateFilter::test_date_outside_range_returns_empty PASSED [ 31%]
+tests/test_db.py::TestGetTokensByDateWithDateFilter::test_excludes_dates_before_start PASSED [ 32%]
+tests/test_db.py::TestGetTokensByDateWithDateFilter::test_excludes_dates_after_end PASSED [ 34%]
+tests/test_db.py::TestGetTokensByDateWithDateFilter::test_aggregation_sums_match_overview_under_filter PASSED [ 35%]
+tests/test_db.py::TestGetTokensByModelWithDateFilter::test_excludes_feb_only_models PASSED [ 36%]
+tests/test_db.py::TestGetTokensByModelWithDateFilter::test_model_counts_correct_under_filter PASSED [ 37%]
+tests/test_db.py::TestGetTokensByProjectWithDateFilter::test_excludes_feb_only_projects PASSED [ 38%]
+tests/test_db.py::TestGetTokensByProjectWithDateFilter::test_session_counts_correct_under_filter PASSED [ 39%]
+tests/test_db.py::TestGetCostBreakdownWithDateFilter::test_top_model_changes_under_filter PASSED [ 40%]
+tests/test_db.py::TestGetCostBreakdownWithDateFilter::test_token_count_consistent_with_cost_under_filter PASSED [ 41%]
+tests/test_db.py::TestGetCostBreakdownWithDateFilter::test_full_range_cost_still_works PASSED [ 42%]
+tests/test_db.py::TestGetAgentBreakdown::test_returns_list PASSED        [ 43%]
+tests/test_db.py::TestGetAgentBreakdown::test_results_have_expected_keys PASSED [ 44%]
+tests/test_db.py::TestGetAgentBreakdown::test_unknown_agent_for_null_agent PASSED [ 45%]
+tests/test_db.py::TestGetAgentBreakdown::test_sorted_by_total_tokens_descending PASSED [ 46%]
+tests/test_db.py::TestGetModelEfficiency::test_returns_list PASSED       [ 47%]
+tests/test_db.py::TestGetModelEfficiency::test_results_have_expected_keys PASSED [ 48%]
+tests/test_db.py::TestGetModelEfficiency::test_cost_per_1k_is_null_for_free_models PASSED [ 50%]
+tests/test_db.py::TestGetModelEfficiency::test_input_output_ratio_positive PASSED [ 51%]
+tests/test_db.py::TestGetUsageHeatmap::test_returns_list PASSED          [ 52%]
+tests/test_db.py::TestGetUsageHeatmap::test_results_have_expected_keys PASSED [ 53%]
+tests/test_db.py::TestGetUsageHeatmap::test_day_of_week_is_0_to_6 PASSED [ 54%]
+tests/test_db.py::TestGetTopSessions::test_returns_list PASSED           [ 55%]
+tests/test_db.py::TestGetTopSessions::test_results_have_expected_keys PASSED [ 56%]
+tests/test_db.py::TestGetTopSessions::test_respects_limit PASSED         [ 57%]
+tests/test_db.py::TestGetCacheEfficiency::test_returns_list PASSED       [ 58%]
+tests/test_db.py::TestGetCacheEfficiency::test_results_have_expected_keys PASSED [ 59%]
+tests/test_db.py::TestGetCacheEfficiency::test_cache_hit_ratio_in_0_to_1_range PASSED [ 60%]
+tests/test_routes.py::TestIndex::test_returns_html PASSED                [ 61%]
+tests/test_routes.py::TestIndex::test_contains_chart_containers PASSED   [ 62%]
+tests/test_routes.py::TestIndex::test_contains_echarts_cdn PASSED        [ 63%]
+tests/test_routes.py::TestIndex::test_contains_db_path PASSED            [ 64%]
+tests/test_routes.py::TestApiOverview::test_returns_json PASSED          [ 65%]
+tests/test_routes.py::TestApiOverview::test_has_all_keys PASSED          [ 67%]
+tests/test_routes.py::TestApiOverview::test_counts_match_fixture PASSED  [ 68%]
+tests/test_routes.py::TestApiTokensByDate::test_returns_json_array PASSED [ 69%]
+tests/test_routes.py::TestApiTokensByDate::test_default_granularity_is_day PASSED [ 70%]
+tests/test_routes.py::TestApiTokensByDate::test_month_granularity PASSED [ 71%]
+tests/test_routes.py::TestApiTokensByDate::test_week_granularity PASSED  [ 72%]
+tests/test_routes.py::TestApiTokensByDate::test_row_has_all_keys PASSED  [ 73%]
+tests/test_routes.py::TestApiTokensByModel::test_returns_json_array PASSED [ 74%]
+tests/test_routes.py::TestApiTokensByModel::test_row_has_all_keys PASSED [ 75%]
+tests/test_routes.py::TestApiTokensByProject::test_returns_json_array PASSED [ 76%]
+tests/test_routes.py::TestApiTokensByProject::test_row_has_all_keys PASSED [ 77%]
+tests/test_routes.py::TestApiTokensByProject::test_project_names_are_derived PASSED [ 78%]
+tests/test_routes.py::TestApiCostBreakdown::test_returns_json_array PASSED [ 79%]
+tests/test_routes.py::TestApiCostBreakdown::test_row_has_all_keys PASSED [ 80%]
+tests/test_routes.py::TestApiCostBreakdown::test_sorted_by_cost_descending PASSED [ 81%]
+tests/test_routes.py::TestApiOverviewWithDateFilter::test_date_params_reduce_counts PASSED [ 82%]
+tests/test_routes.py::TestApiOverviewWithDateFilter::test_both_dates PASSED [ 84%]
+tests/test_routes.py::TestApiOverviewWithDateFilter::test_empty_date_params_same_as_no_params PASSED [ 85%]
+tests/test_routes.py::TestApiTokensByDateWithDateFilter::test_date_filter_excludes_data PASSED [ 86%]
+tests/test_routes.py::TestApiTokensByDateWithDateFilter::test_date_filter_works_with_granularity PASSED [ 87%]
+tests/test_routes.py::TestApiTokensByModelWithDateFilter::test_excludes_feb_only_models PASSED [ 88%]
+tests/test_routes.py::TestApiTokensByProjectWithDateFilter::test_excludes_feb_only_projects PASSED [ 89%]
+tests/test_routes.py::TestApiCostBreakdownWithDateFilter::test_excludes_feb_models PASSED [ 90%]
+tests/test_routes.py::TestUnifiedEndpoint::test_overview_view_returns_200 FAILED [ 91%]
+tests/test_routes.py::TestUnifiedEndpoint::test_invalid_view_returns_400 FAILED [ 92%]
+tests/test_routes.py::TestUnifiedEndpoint::test_missing_view_returns_400 FAILED [ 93%]
+tests/test_routes.py::TestUnifiedEndpoint::test_invalid_view_lists_valid_views FAILED [ 94%]
+tests/test_routes.py::TestBackwardCompatibility::test_overview_redirects FAILED [ 95%]
+tests/test_routes.py::TestBackwardCompatibility::test_tokens_by_date_redirects FAILED [ 96%]
+tests/test_routes.py::TestBackwardCompatibility::test_tokens_by_model_redirects FAILED [ 97%]
+tests/test_routes.py::TestBackwardCompatibility::test_tokens_by_project_redirects FAILED [ 98%]
+tests/test_routes.py::TestBackwardCompatibility::test_cost_breakdown_redirects FAILED [100%]
+
+================================== FAILURES ===================================
+E   assert 404 == 200
+     +  where 404 = <Response [404 Not Found]>.status_code
+D:\gameboy\opencode_token_dashboard\tests\test_routes.py:318: assert 404 == 200
+E   assert 404 == 400
+     +  where 404 = <Response [404 Not Found]>.status_code
+D:\gameboy\opencode_token_dashboard\tests\test_routes.py:322: assert 404 == 400
+E   assert 404 == 400
+     +  where 404 = <Response [404 Not Found]>.status_code
+D:\gameboy\opencode_token_dashboard\tests\test_routes.py:328: assert 404 == 400
+E   AssertionError: assert 'overview' in ''
+     +  where '' = <built-in method get of dict object at 0x000001D73B73E940>('error', '')
+     +    where <built-in method get of dict object at 0x000001D73B73E940> = {'detail': 'Not Found'}.get
+D:\gameboy\opencode_token_dashboard\tests\test_routes.py:335: AssertionError: assert 'overview' in ''
+E   assert 200 == 307
+     +  where 200 = <Response [200 OK]>.status_code
+D:\gameboy\opencode_token_dashboard\tests\test_routes.py:345: assert 200 == 307
+E   assert 200 == 307
+     +  where 200 = <Response [200 OK]>.status_code
+D:\gameboy\opencode_token_dashboard\tests\test_routes.py:350: assert 200 == 307
+E   assert 200 == 307
+     +  where 200 = <Response [200 OK]>.status_code
+D:\gameboy\opencode_token_dashboard\tests\test_routes.py:355: assert 200 == 307
+E   assert 200 == 307
+     +  where 200 = <Response [200 OK]>.status_code
+D:\gameboy\opencode_token_dashboard\tests\test_routes.py:360: assert 200 == 307
+E   assert 200 == 307
+     +  where 200 = <Response [200 OK]>.status_code
+D:\gameboy\opencode_token_dashboard\tests\test_routes.py:365: assert 200 == 307
+=========================== short test summary info ===========================
+FAILED tests/test_routes.py::TestUnifiedEndpoint::test_overview_view_returns_200
+FAILED tests/test_routes.py::TestUnifiedEndpoint::test_invalid_view_returns_400
+FAILED tests/test_routes.py::TestUnifiedEndpoint::test_missing_view_returns_400
+FAILED tests/test_routes.py::TestUnifiedEndpoint::test_invalid_view_lists_valid_views
+FAILED tests/test_routes.py::TestBackwardCompatibility::test_overview_redirects
+FAILED tests/test_routes.py::TestBackwardCompatibility::test_tokens_by_date_redirects
+FAILED tests/test_routes.py::TestBackwardCompatibility::test_tokens_by_model_redirects
+FAILED tests/test_routes.py::TestBackwardCompatibility::test_tokens_by_project_redirects
+FAILED tests/test_routes.py::TestBackwardCompatibility::test_cost_breakdown_redirects
+======================== 9 failed, 85 passed in 4.33s =========================

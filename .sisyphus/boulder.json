@@ -1,0 +1,129 @@
+{
+  "active_plan": "D:\\gameboy\\opencode_token_dashboard\\.sisyphus\\plans\\dashboard-redesign.md",
+  "started_at": "2026-05-02T02:41:39.020Z",
+  "session_ids": [
+    "ses_2196fdd3effe79WeZeuBIEUmHX",
+    "ses_2192f1b7bffeMA6SDxWVIvi3uw",
+    "ses_2192f010effeBNPR2B3X1lxJey",
+    "ses_2192e7ed0ffeS7MIVL8Hn8c5zt",
+    "ses_2192e3adeffea0MMUJepQ4Vbrk"
+  ],
+  "session_origins": {
+    "ses_2196fdd3effe79WeZeuBIEUmHX": "direct",
+    "ses_2192f1b7bffeMA6SDxWVIvi3uw": "appended",
+    "ses_2192f010effeBNPR2B3X1lxJey": "appended",
+    "ses_2192e7ed0ffeS7MIVL8Hn8c5zt": "appended",
+    "ses_2192e3adeffea0MMUJepQ4Vbrk": "appended"
+  },
+  "plan_name": "dashboard-redesign",
+  "agent": "atlas",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "**Expand test fixtures for new dimensions (TDD prep)**",
+      "session_id": "ses_2196da0e5ffevgUPo4ZPclX6H3",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-02T02:47:59.698Z"
+    },
+    "todo:2": {
+      "task_key": "todo:2",
+      "task_label": "2",
+      "task_title": "**Validate heatmap data density on real production DB**",
+      "session_id": "ses_21967dbd7ffeRoIPfgimU8cagp",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-02T02:52:16.839Z"
+    },
+    "todo:4": {
+      "task_key": "todo:4",
+      "task_label": "4",
+      "task_title": "**Write failing tests for ALL new query functions (TDD RED phase)**",
+      "session_id": "ses_21964a0a8ffe5Eguloy506cftn",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-02T02:56:39.925Z"
+    },
+    "todo:5": {
+      "task_key": "todo:5",
+      "task_label": "5",
+      "task_title": "**Implement `get_agent_breakdown` query + route view**",
+      "session_id": "ses_21960fe85ffebXwtgxaIzofLn2",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-02T02:59:19.534Z"
+    },
+    "todo:6": {
+      "task_key": "todo:6",
+      "task_label": "6",
+      "task_title": "**Implement `get_model_efficiency` query + route view**",
+      "session_id": "ses_2195f3a63ffePZa0gSHNhLXVXk",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-02T03:01:47.386Z"
+    },
+    "todo:7": {
+      "task_key": "todo:7",
+      "task_label": "7",
+      "task_title": "**Implement `get_usage_heatmap` query + route view**",
+      "session_id": "ses_2195d1204ffebH7Vh7GC91zZmq",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-02T03:03:14.329Z"
+    },
+    "todo:8": {
+      "task_key": "todo:8",
+      "task_label": "8",
+      "task_title": "**Implement `get_top_sessions` query + route view**",
+      "session_id": "ses_2195ba550ffepWiLqJ3oK1N1ah",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-02T03:04:52.901Z"
+    },
+    "todo:9": {
+      "task_key": "todo:9",
+      "task_label": "9",
+      "task_title": "**Implement `get_cache_efficiency` query + route view**",
+      "session_id": "ses_2195a3a88ffexpBDLJNvXad0Qu",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-02T03:06:05.479Z"
+    },
+    "todo:10": {
+      "task_key": "todo:10",
+      "task_label": "10",
+      "task_title": "**Implement unified `/api/data` endpoint + backward-compatible redirects**",
+      "session_id": "ses_21958cb03ffe47MQu6jWvVsuBi",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-02T03:09:56.685Z"
+    },
+    "todo:11": {
+      "task_key": "todo:11",
+      "task_label": "11",
+      "task_title": "**Frontend layout skeleton: CSS grid + sticky header + panel placeholders**",
+      "session_id": "ses_2195417b7ffe2V0b5CKl5nudYK",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-05-02T03:18:46.529Z"
+    },
+    "todo:12": {
+      "task_key": "todo:12",
+      "task_label": "12",
+      "task_title": "**Frontend: Overview cards + Model efficiency mini cards**",
+      "session_id": "ses_2194ca23bffeq05wFCqF3Bc0ey",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-05-02T03:50:09.088Z"
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "**Plan Compliance Audit** — `oracle`",
+      "session_id": "ses_2192e3adeffea0MMUJepQ4Vbrk",
+      "agent": "oracle",
+      "updated_at": "2026-05-02T03:53:20.556Z"
+    }
+  }
+}

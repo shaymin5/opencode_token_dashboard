@@ -17,12 +17,14 @@ opencode_token_dashboard/
 │   ├── routes.py       # Unified /api/data?view=... endpoint (10 views)
 │   ├── db.py           # 10 read-only SQLite query functions
 │   └── templates/
-│       └── index.html  # ECharts dashboard (~1600 lines, dark theme, 8 panels)
+│       ├── index.html  # Main ECharts dashboard (~1600 lines, dark theme)
+│       └── partials/   # 10 Jinja2 partials (cards, panels, js_*, styles, etc.)
 ├── tests/
 │   ├── __init__.py
 │   ├── conftest.py     # Test fixtures (21 messages, 10 sessions)
 │   ├── test_db.py      # 57 query tests
 │   └── test_routes.py  # 42 API route tests
+├── .sisyphus/          # Internal planning artifacts (dev journal)
 ├── pyproject.toml      # uv project config
 ├── AGENTS.md
 └── README.md
@@ -35,8 +37,9 @@ opencode_token_dashboard/
 | DB queries | `app/db.py` | 10 functions: 5 original + 5 new (agent breakdown, model efficiency, usage heatmap, top sessions, cache efficiency) |
 | API endpoints | `app/routes.py` | Unified `/api/data?view=...` dispatches to 10 views; 5 old endpoints redirect (307) |
 | Frontend | `app/templates/index.html` | Compact 2-column grid, 8 ECharts panels + 7 cards |
-| Tests | `tests/test_db.py`, `tests/test_routes.py` | 57 unit + 42 integration = 99 total |
-| Project config | `pyproject.toml` | uv-managed dependencies |
+| Template partials | `app/templates/partials/` | 10 files: `head`, `styles`, `header`, `cards`, `panels`, `scripts`, `js_utils`, `js_charts`, `js_renderers`, `js_app` |
+| Tests | `tests/test_db.py`, `tests/test_routes.py` | 57 unit + 42 integration = 99 total (class-based, no mock) |
+| Project config | `pyproject.toml` | uv-managed dependencies; no linting/formatting/CI configured |
 
 ## DATABASE SCHEMA (opencode.db)
 
@@ -107,6 +110,9 @@ Data fetching: Unified /api/data?view=... with per-panel loading/error states
 - **Path**: DB at `C:\Users\Shaymin\.local\share\opencode\opencode.db` (Windows); use env var or config
 - **uv**: Use `uv add` for deps, `uv run` for scripts, `uv sync` for install. No pip/venv.
 - **Frontend**: Server-rendered HTML with JS charting library. Avoid SPA frameworks.
+- **Test organization**: Class-based (34 classes), zero mocking, real SQLite temp DB per test, function-scoped fixtures
+- **API dispatch**: String-based `globals().get(func_name)` dispatch in `routes.py:109` — fragile on rename
+- **Jinja2**: Raw `jinja2.Environment` (not Starlette's `Jinja2Templates`) — workaround for cache-key compatibility bug
 
 ## ANTI-PATTERNS (THIS PROJECT)
 
@@ -119,7 +125,9 @@ Data fetching: Unified /api/data?view=... with per-panel loading/error states
 
 ```bash
 uv sync                          # Install dependencies
-uv run python -m app.main        # Start dev server
+uv run python -m app.main        # Start dev server (port 20230)
+uv run python -m app.main --port 8888  # Custom port
+uv run pytest -v                 # Run all 99 tests
 uv add fastapi uvicorn           # Add web framework
 ```
 

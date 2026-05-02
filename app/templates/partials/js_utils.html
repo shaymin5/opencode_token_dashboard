@@ -1,0 +1,75 @@
+<script>
+var DASHBOARD = window.DASHBOARD || {};
+(function() {
+  'use strict';
+
+  /* ─── UTILITIES ─── */
+  DASHBOARD.fmtNum = function(n) {
+    if (n == null || isNaN(n)) return '--';
+    if (n >= 1e9) return (n / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
+    if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+    return String(Math.round(n));
+  };
+
+  DASHBOARD.fmtCost = function(n) {
+    if (n == null || isNaN(n)) return '--';
+    return '$' + Number(n).toFixed(2);
+  };
+
+  DASHBOARD.fmtAxis = function(value) {
+    if (value >= 1e9) return (value / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
+    if (value >= 1e6) return (value / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (value >= 1e3) return (value / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+    return String(value);
+  };
+
+  DASHBOARD.el = function(id) { return document.getElementById(id); };
+
+  /* ─── DATE HELPERS ─── */
+  DASHBOARD.toISODate = function(date) {
+    var y = date.getFullYear();
+    var m = String(date.getMonth() + 1).padStart(2, '0');
+    var d = String(date.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + d;
+  };
+
+  DASHBOARD.daysAgo = function(n) {
+    var d = new Date();
+    d.setDate(d.getDate() - n);
+    return d;
+  };
+
+  DASHBOARD.buildQueryString = function(basePath, params) {
+    if (!params) return basePath;
+    var parts = [];
+    for (var k in params) {
+      if (Object.prototype.hasOwnProperty.call(params, k) && params[k] != null && params[k] !== '') {
+        parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
+      }
+    }
+    return parts.length ? basePath + '?' + parts.join('&') : basePath;
+  };
+
+  /* ─── API ─── */
+  DASHBOARD.apiFetch = function(path, params) {
+    var url = DASHBOARD.buildQueryString(path, params);
+    return fetch(url).then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    });
+  };
+
+  /* ─── DATE RANGE STATE ─── */
+  DASHBOARD.currentStartDate = null;
+  DASHBOARD.currentEndDate = null;
+
+  DASHBOARD.dateParams = function() {
+    var p = {};
+    if (DASHBOARD.currentStartDate) p.start_date = DASHBOARD.currentStartDate;
+    if (DASHBOARD.currentEndDate) p.end_date = DASHBOARD.currentEndDate;
+    return Object.keys(p).length > 0 ? p : null;
+  };
+
+})();
+</script>

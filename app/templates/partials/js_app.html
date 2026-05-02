@@ -1,0 +1,197 @@
+<script>
+var DASHBOARD = window.DASHBOARD || {};
+(function() {
+  'use strict';
+
+  var el = DASHBOARD.el;
+  var charts = DASHBOARD.charts;
+  var apiFetch = DASHBOARD.apiFetch;
+  var fmtNum = DASHBOARD.fmtNum;
+  var fmtCost = DASHBOARD.fmtCost;
+  var showOverlay = DASHBOARD.showOverlay;
+  var hideOverlays = DASHBOARD.hideOverlays;
+  var dateParams = DASHBOARD.dateParams;
+  var toISODate = DASHBOARD.toISODate;
+  var daysAgo = DASHBOARD.daysAgo;
+
+  /* ─── GRANULARITY ─── */
+  DASHBOARD.currentGranularity = 'day';
+
+  /* ─── LOAD ALL DATA ─── */
+  DASHBOARD.loadAllData = function(granularity, dp) {
+    dp = dp || dateParams();
+
+    // 1. Overview (4 main cards)
+    apiFetch('/api/data', Object.assign({view: 'overview'}, dp || {}))
+      .then(function(data) {
+        el('card-tokens').querySelector('.card-value').textContent = fmtNum(data.total_tokens);
+        el('card-cost').querySelector('.card-value').textContent = fmtCost(data.total_cost);
+        el('card-sessions').querySelector('.card-value').textContent = fmtNum(data.total_sessions);
+        el('card-messages').querySelector('.card-value').textContent = fmtNum(data.total_messages);
+
+        var paid = data.paid_messages || 0;
+        el('card-cost-secondary').textContent = paid + ' paid ' + (paid === 1 ? 'message' : 'messages');
+
+        var now = new Date();
+        el('refresh-time').textContent = 'Last refresh: ' + now.toLocaleString('en-US', {
+          month: 'short', day: 'numeric', year: 'numeric',
+          hour: '2-digit', minute: '2-digit', second: '2-digit',
+          hour12: false
+        });
+      }).catch(function(err) {
+        console.error('Overview fetch failed:', err);
+        ['tokens','cost','sessions','messages'].forEach(function(k) {
+          var card = el('card-' + k);
+          if (card) card.querySelector('.card-value').textContent = 'Error';
+        });
+      });
+
+    // 2. Model efficiency (for efficiency mini cards: cost-per-1k, cache-rate)
+    apiFetch('/api/data', Object.assign({view: 'model-efficiency'}, dp || {}))
+      .then(function(data) {
+        if (!data || !data.length) return;
+        var totalCost = 0, totalTokens = 0, weightedCacheRate = 0, cacheWeight = 0;
+        data.forEach(function(d) {
+          totalCost += d.total_cost || 0;
+          totalTokens += d.total_tokens || 0;
+          if (d.cache_hit_ratio != null) {
+            weightedCacheRate += (d.cache_hit_ratio || 0) * (d.total_tokens || 0);
+            cacheWeight += d.total_tokens || 0;
+          }
+        });
+        var avgCost = totalTokens > 0 ? (totalCost / totalTokens * 1000) : 0;
+        el('card-cost-per-1k').querySelector('.card-value').textContent = fmtCost(avgCost);
+        var cacheRate = cacheWeight > 0 ? (weightedCacheRate / cacheWeight) : 0;
+        el('card-cache-rate').querySelector('.card-value').textContent = (cacheRate * 100).toFixed(1) + '%';
+      }).catch(function(err) {
+        console.error('Model efficiency fetch failed:', err);
+      });
+
+    // 3. Agent breakdown (for top agent card)
+    apiFetch('/api/data', Object.assign({view: 'agent-breakdown'}, dp || {}))
+      .then(function(data) {
+        if (data && data.length > 0) {
+          el('card-top-agent').querySelector('.card-value').textContent = data[0].agent;
+        }
+      }).catch(function(err) {
+        console.error('Agent breakdown fetch failed:', err);
+      });
+
+    // 4-10. All chart panels
+    var panelFetches = [
+      { view: 'usage-heatmap',     dom: 'heatmap-chart',     render: DASHBOARD.renderUsageHeatmap },
+      { view: 'top-sessions',      dom: 'top-sessions-chart', render: DASHBOARD.renderTopSessions, params: {limit: 10} },
+      { view: 'tokens-by-model',   dom: 'model-chart',       render: DASHBOARD.renderModelBreakdown },
+      { view: 'tokens-by-project', dom: 'project-chart',     render: DASHBOARD.renderProjectBreakdown },
+      { view: 'agent-breakdown',   dom: 'agent-chart',       render: DASHBOARD.renderAgentBreakdown },
+      { view: 'cost-breakdown',    dom: 'cost-chart',        render: DASHBOARD.renderCostBreakdown },
+      { view: 'cache-efficiency',  dom: 'cache-chart',       render: DASHBOARD.renderCacheEfficiency },
+    ];
+
+    panelFetches.forEach(function(p) {
+      var chart = charts[p.dom];
+      if (!chart) return;
+      var params = Object.assign({view: p.view}, dp || {}, p.params || {});
+      showOverlay(chart, 'loading');
+      apiFetch('/api/data', params)
+        .then(function(data) { hideOverlays(chart); p.render(data); })
+        .catch(function(err) { console.error(p.view + ' failed:', err); showOverlay(chart, 'error'); });
+    });
+
+    // Mini time-series
+    var miniChart = charts['mini-ts-chart'];
+    if (miniChart) {
+      var tsParams = Object.assign({view: 'tokens-by-date', granularity: granularity || 'day'}, dp || {});
+      showOverlay(miniChart, 'loading');
+      apiFetch('/api/data', tsParams)
+        .then(function(data) { hideOverlays(miniChart); DASHBOARD.renderMiniTimeSeries(data); })
+        .catch(function(err) { console.error('mini-ts failed:', err); showOverlay(miniChart, 'error'); });
+    }
+  };
+
+  /* ─── GRANULARITY TOGGLE ─── */
+  var toggleButtons = document.querySelectorAll('#granularity-toggle button');
+
+  toggleButtons.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var g = this.getAttribute('data-granularity');
+      if (g === DASHBOARD.currentGranularity) return;
+
+      toggleButtons.forEach(function(b) { b.classList.remove('active'); });
+      this.classList.add('active');
+      DASHBOARD.currentGranularity = g;
+
+      var miniChart = charts['mini-ts-chart'];
+      if (miniChart) {
+        var dp = dateParams();
+        var tsParams = Object.assign({view: 'tokens-by-date', granularity: g}, dp || {});
+        showOverlay(miniChart, 'loading');
+        apiFetch('/api/data', tsParams)
+          .then(function(data) { hideOverlays(miniChart); DASHBOARD.renderMiniTimeSeries(data); })
+          .catch(function(err) { console.error(err); showOverlay(miniChart, 'error'); });
+      }
+    });
+  });
+
+  /* ─── TIME RANGE PRESETS ─── */
+  var rangeButtons = document.querySelectorAll('#range-presets button');
+
+  rangeButtons.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var range = this.getAttribute('data-range');
+      if (this.classList.contains('active')) return;
+
+      rangeButtons.forEach(function(b) { b.classList.remove('active'); });
+      this.classList.add('active');
+
+      var today = new Date();
+      if (range === '7d') {
+        DASHBOARD.currentStartDate = toISODate(daysAgo(7));
+        DASHBOARD.currentEndDate = toISODate(today);
+      } else if (range === '30d') {
+        DASHBOARD.currentStartDate = toISODate(daysAgo(30));
+        DASHBOARD.currentEndDate = toISODate(today);
+      } else if (range === '90d') {
+        DASHBOARD.currentStartDate = toISODate(daysAgo(90));
+        DASHBOARD.currentEndDate = toISODate(today);
+      } else if (range === 'all') {
+        DASHBOARD.currentStartDate = null;
+        DASHBOARD.currentEndDate = null;
+      }
+
+      el('start-date').value = '';
+      el('end-date').value = '';
+
+      DASHBOARD.loadAllData(DASHBOARD.currentGranularity);
+    });
+  });
+
+  /* ─── CUSTOM DATE INPUTS ─── */
+  el('start-date').addEventListener('change', function() {
+    DASHBOARD.currentStartDate = this.value || null;
+    rangeButtons.forEach(function(b) { b.classList.remove('active'); });
+    DASHBOARD.loadAllData(DASHBOARD.currentGranularity);
+  });
+
+  el('end-date').addEventListener('change', function() {
+    DASHBOARD.currentEndDate = this.value || null;
+    rangeButtons.forEach(function(b) { b.classList.remove('active'); });
+    DASHBOARD.loadAllData(DASHBOARD.currentGranularity);
+  });
+
+  /* ─── RESPONSIVE ─── */
+  var resizeTimer;
+  window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() {
+      DASHBOARD.allCharts.forEach(function(c) { c.resize(); });
+    }, 120);
+  });
+
+  /* ─── BOOT ─── */
+  document.addEventListener('DOMContentLoaded', function() {
+    DASHBOARD.loadAllData('day');
+  });
+
+})();
+</script>
