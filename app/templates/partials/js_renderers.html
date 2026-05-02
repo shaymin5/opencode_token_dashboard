@@ -82,8 +82,8 @@ var DASHBOARD = window.DASHBOARD || {};
           var p = params[0];
           var d = p.data._raw;
           return [
-            '<span style="font-weight:600;color:#e6edf3">' + (d.model || 'unknown') + '</span>',
-            '<span style="color:#8b949e">' + (d.provider || '?') + '</span>',
+            '<span style="font-weight:600;color:#1f2328">' + (d.model || 'unknown') + '</span>',
+            '<span style="color:#656d76">' + (d.provider || '?') + '</span>',
             '',
             'Input:      ' + fmtNum(d.input || 0),
             'Output:     ' + fmtNum(d.output || 0),
@@ -162,7 +162,7 @@ var DASHBOARD = window.DASHBOARD || {};
           var p = params[0];
           var d = p.data._raw;
           return [
-            '<span style="font-weight:600;color:#e6edf3">' + (d.project || 'unknown') + '</span>',
+            '<span style="font-weight:600;color:#1f2328">' + (d.project || 'unknown') + '</span>',
             '',
             'Input:      ' + fmtNum(d.input || 0),
             'Output:     ' + fmtNum(d.output || 0),
@@ -248,8 +248,8 @@ var DASHBOARD = window.DASHBOARD || {};
           var p = params[0];
           var d = p.data._raw;
           return [
-            '<span style="font-weight:600;color:#e6edf3">' + (d.model || 'unknown') + '</span>',
-            '<span style="color:#8b949e">' + (d.provider || '?') + '</span>',
+            '<span style="font-weight:600;color:#1f2328">' + (d.model || 'unknown') + '</span>',
+            '<span style="color:#656d76">' + (d.provider || '?') + '</span>',
             '',
             'Cost:       ' + fmtCost(d.cost || 0),
             'Tokens:     ' + fmtNum(d.token_count || 0),
@@ -277,6 +277,21 @@ var DASHBOARD = window.DASHBOARD || {};
         { type: 'value', name: 'Ratio', min: 0, max: 1, axisLine: {show:false}, splitLine: {lineStyle:{color:'#21262d'}}, axisLabel: {color:'#8b949e', fontSize:10, formatter: function(v) { return (v*100).toFixed(0) + '%'; }} },
         { type: 'value', name: 'Tokens', axisLine: {show:false}, splitLine: {show:false}, axisLabel: {color:'#8b949e', fontSize:10, formatter: fmtAxis} }
       ],
+      tooltip: {
+        trigger: 'axis',
+        formatter: function(params) {
+          var res = '<div style="font-weight:600;margin-bottom:4px;">' + params[0].axisValue + '</div>';
+          params.forEach(function(p) {
+            var val = p.seriesName === 'Cache Hit Ratio'
+              ? (p.value * 100).toFixed(2) + '%'
+              : fmtAxis(p.value);
+            res += '<div style="display:flex;align-items:center;gap:6px;margin-top:3px;">'
+              + '<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' + p.color + ';"></span>'
+              + '<span>' + p.seriesName + ': <strong>' + val + '</strong></span></div>';
+          });
+          return res;
+        }
+      },
       series: [
         { name: 'Cache Hit Ratio', type: 'line', data: data.map(function(d) { return d.cache_hit_ratio; }), smooth: true, symbol: 'none', lineStyle: {color:'#3fb950', width:2}, itemStyle: {color:'#3fb950'}, yAxisIndex: 0 },
         { name: 'Cache Read', type: 'line', data: data.map(function(d) { return d.cache_read; }), smooth: true, symbol: 'none', lineStyle: {color:'#58a6ff', width:1.5}, itemStyle: {color:'#58a6ff'}, yAxisIndex: 1 },
@@ -314,7 +329,7 @@ var DASHBOARD = window.DASHBOARD || {};
         formatter: function(params) {
           var d = params[0].data._raw;
           return [
-            '<span style="font-weight:600;color:#e6edf3">' + d.agent + '</span>',
+            '<span style="font-weight:600;color:#1f2328">' + d.agent + '</span>',
             'Input:      ' + fmtNum(d.input || 0),
             'Output:     ' + fmtNum(d.output || 0),
             'Reasoning:  ' + fmtNum(d.reasoning || 0),
@@ -409,8 +424,8 @@ var DASHBOARD = window.DASHBOARD || {};
         formatter: function(params) {
           var d = params[0].data._raw;
           return [
-            '<span style="font-weight:600;color:#e6edf3">' + (d.title || 'Untitled') + '</span>',
-            '<span style="color:#8b949e">' + (d.project || '?') + '</span>',
+            '<span style="font-weight:600;color:#1f2328">' + (d.title || 'Untitled') + '</span>',
+            '<span style="color:#656d76">' + (d.project || '?') + '</span>',
             'Tokens:     ' + fmtNum(d.total_tokens),
             'Cost:       ' + fmtCost(d.total_cost || 0),
             'Messages:   ' + fmtNum(d.message_count || 0)
