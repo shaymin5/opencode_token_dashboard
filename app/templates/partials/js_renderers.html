@@ -278,9 +278,9 @@ var DASHBOARD = window.DASHBOARD || {};
         { type: 'value', name: 'Tokens', axisLine: {show:false}, splitLine: {show:false}, axisLabel: {color:'#8b949e', fontSize:10, formatter: fmtAxis} }
       ],
       series: [
-        { name: 'Cache Hit Ratio', type: 'line', data: data.map(function(d) { return d.cache_hit_ratio; }), smooth: true, symbol: 'none', lineStyle: {color:'#3fb950', width:2}, yAxisIndex: 0 },
-        { name: 'Cache Read', type: 'line', data: data.map(function(d) { return d.cache_read; }), smooth: true, symbol: 'none', lineStyle: {color:'#58a6ff', width:1.5}, yAxisIndex: 1 },
-        { name: 'Input', type: 'line', data: data.map(function(d) { return d.input; }), smooth: true, symbol: 'none', lineStyle: {color:'#d2991d', width:1.5}, yAxisIndex: 1 }
+        { name: 'Cache Hit Ratio', type: 'line', data: data.map(function(d) { return d.cache_hit_ratio; }), smooth: true, symbol: 'none', lineStyle: {color:'#3fb950', width:2}, itemStyle: {color:'#3fb950'}, yAxisIndex: 0 },
+        { name: 'Cache Read', type: 'line', data: data.map(function(d) { return d.cache_read; }), smooth: true, symbol: 'none', lineStyle: {color:'#58a6ff', width:1.5}, itemStyle: {color:'#58a6ff'}, yAxisIndex: 1 },
+        { name: 'Input', type: 'line', data: data.map(function(d) { return d.input; }), smooth: true, symbol: 'none', lineStyle: {color:'#d2991d', width:1.5}, itemStyle: {color:'#d2991d'}, yAxisIndex: 1 }
       ]
     });
     chart.setOption(option, true);
