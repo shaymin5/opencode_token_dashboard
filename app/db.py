@@ -9,10 +9,13 @@ from __future__ import annotations
 import os
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
+# Asia/Shanghai timezone (UTC+8, no DST)
+SHANGHAI = ZoneInfo("Asia/Shanghai")
 
 # ---------------------------------------------------------------------------
 # Connection helpers
@@ -133,9 +136,9 @@ def _iso_date_to_ms(date_str: str, end_of_day: bool = False) -> int:
     """Convert ISO date ``YYYY-MM-DD`` to milliseconds since Unix epoch.
 
     When ``end_of_day`` is ``True``, returns the timestamp for
-    23:59:59.999999 UTC (inclusive upper bound for a day).
+    23:59:59.999999 Asia/Shanghai (inclusive upper bound for a day).
     """
-    dt = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    dt = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=SHANGHAI)
     if end_of_day:
         dt = dt.replace(hour=23, minute=59, second=59, microsecond=999999)
     return int(dt.timestamp() * 1000)
@@ -229,7 +232,7 @@ def get_tokens_by_date(
 
     sql = f"""
         SELECT
-            strftime('{fmt}', datetime(time_created / 1000, 'unixepoch')) AS date,
+            strftime('{fmt}', datetime(time_created / 1000, 'unixepoch', '+8 hours')) AS date,
             COALESCE(SUM(CAST(json_extract(data, '$.tokens.input')       AS INTEGER)), 0) AS input,
             COALESCE(SUM(CAST(json_extract(data, '$.tokens.output')      AS INTEGER)), 0) AS output,
             COALESCE(SUM(CAST(json_extract(data, '$.tokens.reasoning')   AS INTEGER)), 0) AS reasoning,
@@ -479,7 +482,7 @@ def get_usage_heatmap(
     start_date: str | None = None,
     end_date: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Return message count and token volume by day-of-week x hour (UTC).
+    """Return message count and token volume by day-of-week x hour (Asia/Shanghai).
 
     Returns flat rows with day_of_week (string '0'-'6', Sunday=0),
     hour (string '00'-'23'), message_count, total_tokens.
@@ -488,8 +491,8 @@ def get_usage_heatmap(
     date_clause, date_params = _build_date_filter(start_date, end_date)
     sql = f"""
         SELECT
-            strftime('%w', datetime(time_created / 1000, 'unixepoch')) AS day_of_week,
-            strftime('%H', datetime(time_created / 1000, 'unixepoch')) AS hour,
+            strftime('%w', datetime(time_created / 1000, 'unixepoch', '+8 hours')) AS day_of_week,
+            strftime('%H', datetime(time_created / 1000, 'unixepoch', '+8 hours')) AS hour,
             COUNT(*) AS message_count,
             COALESCE(SUM(CAST(json_extract(data, '$.tokens.input')       AS INTEGER)), 0)
             + COALESCE(SUM(CAST(json_extract(data, '$.tokens.output')      AS INTEGER)), 0)
@@ -565,7 +568,7 @@ def get_cache_efficiency(
     date_clause, date_params = _build_date_filter(start_date, end_date)
     sql = f"""
         SELECT
-            strftime('%Y-%m-%d', datetime(time_created / 1000, 'unixepoch')) AS date,
+            strftime('%Y-%m-%d', datetime(time_created / 1000, 'unixepoch', '+8 hours')) AS date,
             COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.read')  AS INTEGER)), 0) AS cache_read,
             COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.write') AS INTEGER)), 0) AS cache_write,
             COALESCE(SUM(CAST(json_extract(data, '$.tokens.input')       AS INTEGER)), 0) AS input,

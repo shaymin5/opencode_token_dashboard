@@ -114,6 +114,50 @@ Data fetching: Unified /api/data?view=... with per-panel loading/error states
 - **API dispatch**: String-based `globals().get(func_name)` dispatch in `routes.py:109` — fragile on rename
 - **Jinja2**: Raw `jinja2.Environment` (not Starlette's `Jinja2Templates`) — workaround for cache-key compatibility bug
 
+## TIMEZONE HANDLING
+
+**All times are Asia/Shanghai (UTC+8).** The dashboard consistently displays time in East Eight Time.
+
+### Data Source
+
+`opencode.db` stores `time_created` as **standard Unix epoch milliseconds** (milliseconds since 1970-01-01 00:00:00 UTC). OpenCode's own UI converts these to East Eight for display — the dashboard mirrors this behavior.
+
+### Conversion Points
+
+| Layer | File | Mechanism |
+|-------|------|-----------|
+| SQL queries | `app/db.py` (3 functions) | `datetime(time_created/1000, 'unixepoch', '+8 hours')` — the `'+8 hours'` modifier shifts UTC to Asia/Shanghai |
+| Python date filter | `app/db.py:_iso_date_to_ms` | `ZoneInfo("Asia/Shanghai")` — interprets user-supplied date strings (e.g. `start_date=2026-03-01`) as Asia/Shanghai midnight, then converts to UTC epoch ms for SQL comparison |
+| JS date formatting | `partials/js_utils.html` | `Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' })` — formats Date objects as `YYYY-MM-DD` in Shanghai time |
+| JS refresh timestamp | `partials/js_app.html` | `toLocaleString('en-US', { ..., timeZone: 'Asia/Shanghai' })` — "Last refresh" label shows Shanghai time |
+
+### Affected SQL Queries
+
+| Function | What changes |
+|----------|-------------|
+| `get_tokens_by_date` | Date grouping shifts by +8h (day boundaries at Shanghai midnight) |
+| `get_usage_heatmap` | Hour-of-day reflects Shanghai clock, not UTC |
+| `get_cache_efficiency` | Daily aggregation aligns to Shanghai calendar day |
+
+### Date Filter Boundaries
+
+The `_iso_date_to_ms()` helper converts `"YYYY-MM-DD"` to epoch milliseconds for SQL `time_created >= ?` comparisons. Because it uses `Asia/Shanghai` timezone:
+
+- `start_date="2026-03-01"` → epoch ms for `2026-03-01 00:00:00 CST` = `2026-02-28 16:00:00 UTC`
+- `end_date="2026-03-01"` (end_of_day) → epoch ms for `2026-03-01 23:59:59 CST` = `2026-03-01 15:59:59 UTC`
+
+This ensures date range filters behave intuitively for users in East Eight Time: a filter on `2026-03-01` covers the full calendar day in Shanghai.
+
+### Key Constant
+
+```python
+# app/db.py
+from zoneinfo import ZoneInfo
+SHANGHAI = ZoneInfo("Asia/Shanghai")
+```
+
+Requires `tzdata` pip package on Windows (no bundled IANA timezone DB).
+
 ## ANTI-PATTERNS (THIS PROJECT)
 
 - No writes to opencode.db — `INSERT`/`UPDATE`/`DELETE` are forbidden

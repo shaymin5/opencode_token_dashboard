@@ -26,12 +26,11 @@ var DASHBOARD = window.DASHBOARD || {};
 
   DASHBOARD.el = function(id) { return document.getElementById(id); };
 
-  /* ─── DATE HELPERS ─── */
+  /* ─── DATE HELPERS (Asia/Shanghai) ─── */
+  var SHANGHAI_FMT = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' });
+
   DASHBOARD.toISODate = function(date) {
-    var y = date.getFullYear();
-    var m = String(date.getMonth() + 1).padStart(2, '0');
-    var d = String(date.getDate()).padStart(2, '0');
-    return y + '-' + m + '-' + d;
+    return SHANGHAI_FMT.format(date);
   };
 
   DASHBOARD.daysAgo = function(n) {
