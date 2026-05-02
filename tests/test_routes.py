@@ -31,7 +31,7 @@ def app_with_test_db(test_db_path: str) -> FastAPI:
 
 
 @pytest.fixture
-def client(app_with_test_db: FastAPI) -> TestClient:
+def client(app_with_test_db: FastAPI) -> Iterator[TestClient]:
     """Yield a TestClient scoped to the test app."""
     with TestClient(app_with_test_db) as c:
         yield c
