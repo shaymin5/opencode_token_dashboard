@@ -503,7 +503,7 @@ class TestGetTopSessions:
         from app.db import get_top_sessions
         data = get_top_sessions(test_conn)
         if data:
-            expected = {"id", "title", "project", "message_count", "total_tokens", "total_cost", "input", "output", "reasoning", "cache_read", "cache_write"}
+            expected = {"id", "title", "project", "message_count", "total_tokens", "cost", "input", "output", "reasoning", "cache_read", "cache_write"}
             assert expected.issubset(data[0].keys())
 
     def test_respects_limit(self, test_conn):

@@ -357,13 +357,13 @@ var DASHBOARD = window.DASHBOARD || {};
         formatter: function(params) {
           var d = params[0].data._raw;
           var dimLabel = dim === 'cost' ? 'Cost' : 'Value';
-          var dimFmt = dim === 'cost' ? fmtCost(d.total_cost || 0) : fmtNum(DASHBOARD.dimValue(d, dim));
+          var dimFmt = dim === 'cost' ? fmtCost(d.cost || 0) : fmtNum(DASHBOARD.dimValue(d, dim));
           return [
             '<span style="font-weight:600;color:#1f2328">' + (d.title || 'Untitled') + '</span>',
             '<span style="color:#656d76">' + (d.project || '?') + '</span>',
             dimLabel + ':     ' + dimFmt,
             'Total Tokens:' + fmtNum(d.total_tokens || 0),
-            'Cost:       ' + fmtCost(d.total_cost || 0),
+            'Cost:       ' + fmtCost(d.cost || 0),
             'Messages:   ' + fmtNum(d.message_count || 0)
           ].join('<br/>');
         }

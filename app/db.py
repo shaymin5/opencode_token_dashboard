@@ -545,7 +545,7 @@ def get_top_sessions(
             COALESCE(SUM(CAST(json_extract(m.data, '$.tokens.reasoning')   AS INTEGER)), 0) AS reasoning,
             COALESCE(SUM(CAST(json_extract(m.data, '$.tokens.cache.read')  AS INTEGER)), 0) AS cache_read,
             COALESCE(SUM(CAST(json_extract(m.data, '$.tokens.cache.write') AS INTEGER)), 0) AS cache_write,
-            COALESCE(SUM(CAST(json_extract(m.data, '$.cost') AS REAL)), 0) AS total_cost
+            COALESCE(SUM(CAST(json_extract(m.data, '$.cost') AS REAL)), 0) AS cost
         FROM message m
         JOIN session s ON s.id = m.session_id
         JOIN project p ON p.id = s.project_id
