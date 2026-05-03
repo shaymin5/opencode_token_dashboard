@@ -60,8 +60,8 @@ var DASHBOARD = window.DASHBOARD || {};
   };
 
   /* ─── DATE RANGE STATE ─── */
-  DASHBOARD.currentStartDate = null;
-  DASHBOARD.currentEndDate = null;
+  DASHBOARD.currentStartDate = DASHBOARD.toISODate(DASHBOARD.daysAgo(7));
+  DASHBOARD.currentEndDate = DASHBOARD.toISODate(new Date());
 
   DASHBOARD.dateParams = function() {
     var p = {};
