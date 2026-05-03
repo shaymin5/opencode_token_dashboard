@@ -294,8 +294,8 @@ var DASHBOARD = window.DASHBOARD || {};
     }
 
     var option = baseOption({
-      grid: { left: 60, right: 60, top: 12, bottom: 12 },
-      xAxis: { type: 'category', data: hours, splitArea: {show: true}, axisLine: {show:false}, axisLabel: {color:'#8b949e', fontSize:9, interval: 3} },
+      grid: { left: 50, right: 100, top: 22, bottom: 26 },
+      xAxis: { type: 'category', data: hours, splitArea: {show: true}, axisLine: {show:false}, axisLabel: {color:'#8b949e', fontSize:9, interval: 3, margin: 10} },
       yAxis: { type: 'category', data: days, splitArea: {show: true}, axisLine: {show:false}, axisLabel: {color:'#8b949e', fontSize:10} },
       visualMap: {
         min: 0, max: maxVal || 1,
