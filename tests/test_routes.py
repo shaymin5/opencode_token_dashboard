@@ -55,9 +55,9 @@ class TestIndex:
         assert "model-chart" in html
         assert "project-chart" in html
         assert "agent-chart" in html
-        assert "cost-chart" in html
         assert "cache-chart" in html
         assert "overview-cards" in html
+        # cost-chart removed — cost is now a selectable dimension
 
     def test_contains_echarts_cdn(self, client: TestClient):
         resp = client.get("/")
@@ -330,7 +330,7 @@ class TestApiAgentBreakdown:
         assert resp.status_code == 200
         data = resp.json()
         if data:
-            expected = {"agent", "total_tokens", "input", "output", "reasoning", "cache_read", "cache_write", "message_count"}
+            expected = {"agent", "total_tokens", "input", "output", "reasoning", "cache_read", "cache_write", "cost", "message_count"}
             assert expected.issubset(data[0].keys())
 
 

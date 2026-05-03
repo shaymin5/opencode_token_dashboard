@@ -414,6 +414,7 @@ def get_agent_breakdown(
             COALESCE(SUM(CAST(json_extract(data, '$.tokens.reasoning')   AS INTEGER)), 0) AS reasoning,
             COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.read')  AS INTEGER)), 0) AS cache_read,
             COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.write') AS INTEGER)), 0) AS cache_write,
+            COALESCE(SUM(CAST(json_extract(data, '$.cost') AS REAL)), 0) AS cost,
             COUNT(*) AS message_count
         FROM message
         WHERE json_extract(data, '$.tokens.input') IS NOT NULL
@@ -499,7 +500,13 @@ def get_usage_heatmap(
             + COALESCE(SUM(CAST(json_extract(data, '$.tokens.reasoning')   AS INTEGER)), 0)
             + COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.read')  AS INTEGER)), 0)
             + COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.write') AS INTEGER)), 0)
-            AS total_tokens
+            AS total_tokens,
+            COALESCE(SUM(CAST(json_extract(data, '$.tokens.input')       AS INTEGER)), 0) AS input,
+            COALESCE(SUM(CAST(json_extract(data, '$.tokens.output')      AS INTEGER)), 0) AS output,
+            COALESCE(SUM(CAST(json_extract(data, '$.tokens.reasoning')   AS INTEGER)), 0) AS reasoning,
+            COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.read')  AS INTEGER)), 0) AS cache_read,
+            COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.write') AS INTEGER)), 0) AS cache_write,
+            COALESCE(SUM(CAST(json_extract(data, '$.cost') AS REAL)), 0) AS cost
         FROM message
         WHERE json_extract(data, '$.tokens.input') IS NOT NULL
         {('AND ' + date_clause) if date_clause else ''}
@@ -533,6 +540,11 @@ def get_top_sessions(
             + COALESCE(SUM(CAST(json_extract(m.data, '$.tokens.cache.read')  AS INTEGER)), 0)
             + COALESCE(SUM(CAST(json_extract(m.data, '$.tokens.cache.write') AS INTEGER)), 0)
             AS total_tokens,
+            COALESCE(SUM(CAST(json_extract(m.data, '$.tokens.input')       AS INTEGER)), 0) AS input,
+            COALESCE(SUM(CAST(json_extract(m.data, '$.tokens.output')      AS INTEGER)), 0) AS output,
+            COALESCE(SUM(CAST(json_extract(m.data, '$.tokens.reasoning')   AS INTEGER)), 0) AS reasoning,
+            COALESCE(SUM(CAST(json_extract(m.data, '$.tokens.cache.read')  AS INTEGER)), 0) AS cache_read,
+            COALESCE(SUM(CAST(json_extract(m.data, '$.tokens.cache.write') AS INTEGER)), 0) AS cache_write,
             COALESCE(SUM(CAST(json_extract(m.data, '$.cost') AS REAL)), 0) AS total_cost
         FROM message m
         JOIN session s ON s.id = m.session_id

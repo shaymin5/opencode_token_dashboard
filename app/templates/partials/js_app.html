@@ -17,6 +17,9 @@ var DASHBOARD = window.DASHBOARD || {};
   /* ─── GRANULARITY ─── */
   DASHBOARD.currentGranularity = 'day';
 
+  /* ─── DIMENSION ─── */
+  DASHBOARD.currentSortBy = 'total_tokens';
+
   /* ─── HELPERS ─── */
 
   function populateCards(all) {
@@ -68,7 +71,6 @@ var DASHBOARD = window.DASHBOARD || {};
       { key: 'tokens_by_model',  dom: 'model-chart',       render: DASHBOARD.renderModelBreakdown },
       { key: 'tokens_by_project',dom: 'project-chart',     render: DASHBOARD.renderProjectBreakdown },
       { key: 'agent_breakdown',  dom: 'agent-chart',       render: DASHBOARD.renderAgentBreakdown },
-      { key: 'cost_breakdown',   dom: 'cost-chart',        render: DASHBOARD.renderCostBreakdown },
       { key: 'cache_efficiency', dom: 'cache-chart',       render: DASHBOARD.renderCacheEfficiency },
     ];
 
@@ -87,7 +89,7 @@ var DASHBOARD = window.DASHBOARD || {};
   function showAllLoading() {
     var panelIds = [
       'heatmap-chart', 'top-sessions-chart', 'model-chart', 'project-chart',
-      'agent-chart', 'cost-chart', 'cache-chart'
+      'agent-chart', 'cache-chart'
     ];
     panelIds.forEach(function(id) {
       var chart = charts[id];
@@ -98,7 +100,7 @@ var DASHBOARD = window.DASHBOARD || {};
   function hideAllLoading() {
     var panelIds = [
       'heatmap-chart', 'top-sessions-chart', 'model-chart', 'project-chart',
-      'agent-chart', 'cost-chart', 'cache-chart'
+      'agent-chart', 'cache-chart'
     ];
     panelIds.forEach(function(id) {
       var chart = charts[id];
@@ -109,7 +111,7 @@ var DASHBOARD = window.DASHBOARD || {};
   function showAllError() {
     var panelIds = [
       'heatmap-chart', 'top-sessions-chart', 'model-chart', 'project-chart',
-      'agent-chart', 'cost-chart', 'cache-chart'
+      'agent-chart', 'cache-chart'
     ];
     panelIds.forEach(function(id) {
       var chart = charts[id];
@@ -154,6 +156,15 @@ var DASHBOARD = window.DASHBOARD || {};
       DASHBOARD.loadAllData(g);
     });
   });
+
+  /* ─── DIMENSION SELECTOR ─── */
+  var dimensionSelect = document.getElementById('dimension-select');
+  if (dimensionSelect) {
+    dimensionSelect.addEventListener('change', function() {
+      DASHBOARD.currentSortBy = this.value;
+      DASHBOARD.loadAllData(DASHBOARD.currentGranularity);
+    });
+  }
 
   /* ─── TIME RANGE PRESETS ─── */
   var rangeButtons = document.querySelectorAll('#range-presets button');

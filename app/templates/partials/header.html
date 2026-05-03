@@ -16,6 +16,16 @@
         <button data-granularity="week">Week</button>
         <button data-granularity="month">Month</button>
       </div>
+      <div class="dimension-selector" id="dimension-selector">
+        <select id="dimension-select">
+          <option value="total_tokens">Total Tokens</option>
+          <option value="input">Input Tokens</option>
+          <option value="cache_read">Cache Read Tokens</option>
+          <option value="output">Output Tokens</option>
+          <option value="reasoning">Reasoning Tokens</option>
+          <option value="cost">Cost</option>
+        </select>
+      </div>
       <div class="time-range-bar" id="time-range-bar">
         <div class="range-presets" id="range-presets">
           <button data-range="7d" class="active">7D</button>

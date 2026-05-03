@@ -409,7 +409,7 @@ class TestGetAgentBreakdown:
         from app.db import get_agent_breakdown
         data = get_agent_breakdown(test_conn)
         if data:
-            expected = {"agent", "total_tokens", "input", "output", "reasoning", "cache_read", "cache_write", "message_count"}
+            expected = {"agent", "total_tokens", "input", "output", "reasoning", "cache_read", "cache_write", "cost", "message_count"}
             assert expected.issubset(data[0].keys())
 
     def test_unknown_agent_for_null_agent(self, test_conn):
@@ -477,7 +477,7 @@ class TestGetUsageHeatmap:
         from app.db import get_usage_heatmap
         data = get_usage_heatmap(test_conn)
         if data:
-            expected = {"day_of_week", "hour", "message_count", "total_tokens"}
+            expected = {"day_of_week", "hour", "message_count", "total_tokens", "input", "output", "reasoning", "cache_read", "cache_write", "cost"}
             assert expected.issubset(data[0].keys())
 
     def test_day_of_week_is_0_to_6(self, test_conn):
@@ -503,7 +503,7 @@ class TestGetTopSessions:
         from app.db import get_top_sessions
         data = get_top_sessions(test_conn)
         if data:
-            expected = {"id", "title", "project", "message_count", "total_tokens", "total_cost"}
+            expected = {"id", "title", "project", "message_count", "total_tokens", "total_cost", "input", "output", "reasoning", "cache_read", "cache_write"}
             assert expected.issubset(data[0].keys())
 
     def test_respects_limit(self, test_conn):
