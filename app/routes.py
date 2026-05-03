@@ -8,7 +8,7 @@ from collections.abc import Iterator
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from jinja2 import Environment, FileSystemLoader
 from sqlite3 import Connection
 
@@ -80,6 +80,21 @@ async def index(request: Request):
     """Render the main dashboard page."""
     html = _jinja_template.render({"db_path": get_db_path()})
     return HTMLResponse(html)
+
+
+# ---------------------------------------------------------------------------
+# Favicon
+# ---------------------------------------------------------------------------
+@router.get("/favicon.ico")
+async def favicon():
+    """Serve the SVG favicon."""
+    import os
+    svg_path = os.path.join(os.path.dirname(__file__), "static", "favicon.svg")
+    try:
+        with open(svg_path, "rb") as f:
+            return Response(content=f.read(), media_type="image/svg+xml")
+    except FileNotFoundError:
+        return Response(status_code=204)
 
 
 # ---------------------------------------------------------------------------

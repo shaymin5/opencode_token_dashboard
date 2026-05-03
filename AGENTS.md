@@ -1,6 +1,8 @@
 # PROJECT KNOWLEDGE BASE
 
 **Generated:** 2026-05-02
+**Commit:** 4bfa660
+**Branch:** master
 **Stack:** Python 3.13 + uv + FastAPI + SQLite (read-only) + ECharts
 
 ## OVERVIEW
@@ -24,7 +26,7 @@ opencode_token_dashboard/
 │   ├── conftest.py     # Test fixtures (21 messages, 10 sessions)
 │   ├── test_db.py      # 57 query tests
 │   └── test_routes.py  # 42 API route tests
-├── .sisyphus/          # Internal planning artifacts (dev journal)
+├── .sisyphus/          # Internal planning artifacts (dev journal — not project source)
 ├── pyproject.toml      # uv project config
 ├── AGENTS.md
 └── README.md
