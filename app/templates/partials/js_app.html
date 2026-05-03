@@ -87,7 +87,7 @@ var DASHBOARD = window.DASHBOARD || {};
   function showAllLoading() {
     var panelIds = [
       'heatmap-chart', 'top-sessions-chart', 'model-chart', 'project-chart',
-      'agent-chart', 'cost-chart', 'cache-chart', 'mini-ts-chart'
+      'agent-chart', 'cost-chart', 'cache-chart'
     ];
     panelIds.forEach(function(id) {
       var chart = charts[id];
@@ -98,7 +98,7 @@ var DASHBOARD = window.DASHBOARD || {};
   function hideAllLoading() {
     var panelIds = [
       'heatmap-chart', 'top-sessions-chart', 'model-chart', 'project-chart',
-      'agent-chart', 'cost-chart', 'cache-chart', 'mini-ts-chart'
+      'agent-chart', 'cost-chart', 'cache-chart'
     ];
     panelIds.forEach(function(id) {
       var chart = charts[id];
@@ -109,7 +109,7 @@ var DASHBOARD = window.DASHBOARD || {};
   function showAllError() {
     var panelIds = [
       'heatmap-chart', 'top-sessions-chart', 'model-chart', 'project-chart',
-      'agent-chart', 'cost-chart', 'cache-chart', 'mini-ts-chart'
+      'agent-chart', 'cost-chart', 'cache-chart'
     ];
     panelIds.forEach(function(id) {
       var chart = charts[id];
@@ -127,9 +127,6 @@ var DASHBOARD = window.DASHBOARD || {};
       .then(function(all) {
         hideAllLoading();
         populateCards(all);
-        if (all.tokens_by_date) {
-          DASHBOARD.renderMiniTimeSeries(all.tokens_by_date);
-        }
         renderAllCharts(all);
       })
       .catch(function(err) {
@@ -156,18 +153,9 @@ var DASHBOARD = window.DASHBOARD || {};
 
       var dp = dateParams();
       var params = Object.assign({view: 'all', granularity: g}, dp || {});
-      var miniChart = charts['mini-ts-chart'];
-      if (miniChart) showOverlay(miniChart, 'loading');
       apiFetch('/api/data', params)
-        .then(function(all) {
-          if (miniChart) hideOverlays(miniChart);
-          if (all.tokens_by_date) {
-            DASHBOARD.renderMiniTimeSeries(all.tokens_by_date);
-          }
-        })
         .catch(function(err) {
           console.error(err);
-          if (miniChart) showOverlay(miniChart, 'error');
         });
     });
   });

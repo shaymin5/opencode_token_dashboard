@@ -50,7 +50,6 @@ class TestIndex:
     def test_contains_chart_containers(self, client: TestClient):
         resp = client.get("/")
         html = resp.text
-        assert "mini-ts-chart" in html
         assert "heatmap-chart" in html
         assert "top-sessions-chart" in html
         assert "model-chart" in html

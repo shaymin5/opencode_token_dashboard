@@ -436,29 +436,5 @@ var DASHBOARD = window.DASHBOARD || {};
     });
     chart.setOption(option, true);
   };
-
-  /* ─── MINI TIME-SERIES ─── */
-  DASHBOARD.renderMiniTimeSeries = function(data) {
-    var chart = charts['mini-ts-chart'];
-    if (!chart || !data || !data.length) { showOverlay(chart, 'error'); return; }
-
-    var option = baseOption({
-      grid: { left: 12, right: 24, top: 4, bottom: 4, containLabel: true },
-      xAxis: { type: 'category', data: data.map(function(d) { return d.date; }), axisLine: {show:false}, axisTick: {show:false}, axisLabel: {show:false}, splitLine: {show:false} },
-      yAxis: { type: 'value', axisLine: {show:false}, axisTick: {show:false}, splitLine: {show:false}, axisLabel: {show:false} },
-      series: [{
-        type: 'line',
-        data: data.map(function(d) { return d.total; }),
-        smooth: true,
-        symbol: 'none',
-        lineStyle: { color: '#58a6ff', width: 1.5 },
-        areaStyle: { color: '#58a6ff', opacity: 0.15 }
-      }],
-      tooltip: { trigger: 'axis', valueFormatter: function(v) { return fmtNum(v) + ' tokens'; } },
-      legend: { show: false }
-    });
-    chart.setOption(option, true);
-  };
-
 })();
 </script>
