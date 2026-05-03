@@ -537,6 +537,26 @@ class TestGetCacheEfficiency:
                 if r["cache_hit_ratio"] is not None:
                     assert 0 <= r["cache_hit_ratio"] <= 1
 
+    def test_granularity_week_returns_fewer_rows(self, test_conn):
+        from app.db import get_cache_efficiency
+        day_data = get_cache_efficiency(test_conn, granularity="day")
+        week_data = get_cache_efficiency(test_conn, granularity="week")
+        assert len(week_data) <= len(day_data)
+
+    def test_granularity_month_returns_fewer_or_equal_rows(self, test_conn):
+        from app.db import get_cache_efficiency
+        day_data = get_cache_efficiency(test_conn, granularity="day")
+        month_data = get_cache_efficiency(test_conn, granularity="month")
+        assert len(month_data) <= len(day_data)
+
+    def test_granularity_month_date_format(self, test_conn):
+        from app.db import get_cache_efficiency
+        data = get_cache_efficiency(test_conn, granularity="month")
+        if data:
+            import re
+            for r in data:
+                assert re.match(r"^\d{4}-\d{2}$", r["date"]), f"Expected YYYY-MM, got {r['date']}"
+
 
 # ═══════════════════════════════════════════════════════════════════
 # get_all_data (consolidated endpoint)

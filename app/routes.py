@@ -137,6 +137,8 @@ async def api_data(
             return func(conn, granularity=granularity, start_date=start_date, end_date=end_date)
         elif view == "top-sessions":
             return func(conn, start_date=start_date, end_date=end_date, limit=limit)
+        elif view == "cache-efficiency":
+            return func(conn, granularity=granularity, start_date=start_date, end_date=end_date)
         else:
             return func(conn, start_date=start_date, end_date=end_date)
     except Exception as exc:

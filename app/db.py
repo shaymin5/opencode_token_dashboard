@@ -556,19 +556,27 @@ def get_top_sessions(
 
 def get_cache_efficiency(
     conn: sqlite3.Connection,
+    granularity: str = "day",
     start_date: str | None = None,
     end_date: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Return daily cache efficiency time-series.
+    """Return cache efficiency time-series aggregated by granularity.
     
-    Computes cache_hit_ratio = cache_read / (cache_read + input) per day.
+    Supported granularities: ``day``, ``week``, ``month``.
+    Computes cache_hit_ratio = cache_read / (cache_read + input) per period.
     Returns NULL when both cache_read and input are 0.
     Sorted by date ascending.
     """
+    fmt_map = {
+        "day": "%Y-%m-%d",
+        "week": "%Y-%W",
+        "month": "%Y-%m",
+    }
+    fmt = fmt_map.get(granularity, "%Y-%m-%d")
     date_clause, date_params = _build_date_filter(start_date, end_date)
     sql = f"""
         SELECT
-            strftime('%Y-%m-%d', datetime(time_created / 1000, 'unixepoch', '+8 hours')) AS date,
+            strftime('{fmt}', datetime(time_created / 1000, 'unixepoch', '+8 hours')) AS date,
             COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.read')  AS INTEGER)), 0) AS cache_read,
             COALESCE(SUM(CAST(json_extract(data, '$.tokens.cache.write') AS INTEGER)), 0) AS cache_write,
             COALESCE(SUM(CAST(json_extract(data, '$.tokens.input')       AS INTEGER)), 0) AS input,
@@ -633,5 +641,5 @@ def get_all_data(
         fut["model_efficiency"] = pool.submit(_query, get_model_efficiency, **kwargs)
         fut["usage_heatmap"] = pool.submit(_query, get_usage_heatmap, **kwargs)
         fut["top_sessions"] = pool.submit(_query, get_top_sessions, limit=limit, **kwargs)
-        fut["cache_efficiency"] = pool.submit(_query, get_cache_efficiency, **kwargs)
+        fut["cache_efficiency"] = pool.submit(_query, get_cache_efficiency, granularity, **kwargs)
         return {k: f.result() for k, f in fut.items()}

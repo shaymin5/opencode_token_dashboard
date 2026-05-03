@@ -151,12 +151,7 @@ var DASHBOARD = window.DASHBOARD || {};
       this.classList.add('active');
       DASHBOARD.currentGranularity = g;
 
-      var dp = dateParams();
-      var params = Object.assign({view: 'all', granularity: g}, dp || {});
-      apiFetch('/api/data', params)
-        .catch(function(err) {
-          console.error(err);
-        });
+      DASHBOARD.loadAllData(g);
     });
   });
 
