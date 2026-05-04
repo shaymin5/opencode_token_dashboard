@@ -25,7 +25,7 @@ from app.db import (
 
 class TestProjectNameFromWorktree:
     def test_normal_path(self):
-        assert _project_name_from_worktree(r"D:\gameboy\project-navigator") == "project-navigator"
+        assert _project_name_from_worktree("/home/user/project-navigator") == "project-navigator"
 
     def test_root_worktree(self):
         assert _project_name_from_worktree("/") == "Global"

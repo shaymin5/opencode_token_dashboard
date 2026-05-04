@@ -4,15 +4,15 @@
 
 ## OVERVIEW
 
-99 tests (57 unit + 42 integration) across 36 classes. Zero mocking. Real SQLite temp DB per test. No pytest config, no parametrize, no markers.
+117 tests (68 unit + 49 integration) across 37 classes. Zero mocking. Real SQLite temp DB per test. No pytest config, no parametrize, no markers.
 
 ## STRUCTURE
 
 ```
 tests/
 ├── conftest.py      # Fixtures: test_db_path, test_conn (21 messages, 10 sessions)
-├── test_db.py       # 57 DB query tests (20 classes)
-└── test_routes.py   # 42 API route tests (16 classes)
+├── test_db.py       # 68 DB query tests (20 classes)
+└── test_routes.py   # 49 API route tests (17 classes)
 ```
 
 ## WHERE TO LOOK
@@ -25,29 +25,34 @@ tests/
 
 ## KEY CONVENTIONS
 
-- **100% class-based** — no standalone test functions
-- **Class naming**: `Test<FunctionName>` (DB), `TestApi<Endpoint>` (routes)
-- **No `@pytest.mark.parametrize`** — variations as separate methods
-- **No mocking** — zero `unittest.mock` or `monkeypatch` (except 1 env-var test)
-- **No `pytest.raises`** — no exception-path tests
-- **Assertions**: plain `assert` statements, hard-coded fixture counts
+- **100% class-based** — no standalone test functions (even for single-method tests)
+- **Class naming**: `Test<FunctionName>` (DB), `TestApi<Endpoint>` (routes); date-filter variants: `<Base>WithDateFilter`
+- **No `@pytest.mark.parametrize`** — variations as separate methods (e.g., 5 date-filter methods instead of 1 parametrized test)
+- **No mocking** — zero `unittest.mock` or `monkeypatch` (except 1 env-var test in `TestGetDbPath`)
+- **No `pytest.raises`** — no exception-path tests for any function
+- **No pytest markers** — no `@pytest.mark.skip`, `@pytest.mark.xfail`, or custom markers
+- **Assertions**: plain `assert` statements, hard-coded fixture counts (brittle)
 
 ### Fixtures
-- `test_db_path` — temp `.db` file on disk (not `:memory:`), full schema + 21 messages
+- `test_db_path` — temp `.db` file on disk (not `:memory:`), full schema + 21 messages spanning 4 months
 - `test_conn` — read-only connection (`PRAGMA query_only = 1`) with `sqlite3.Row`
-- Route tests: `app_with_test_db` (fresh `FastAPI` + dependency override) + `client` (`TestClient`)
+- Route tests: `app_with_test_db` (fresh `FastAPI` + dependency override, not real `app.main`) + `client` (`TestClient`)
 - All function-scoped (default), no shared state between tests
 
 ### Fixture Data Edge Cases (21 messages)
 - Models: deepseek-v4-flash, MiniMax-M2.7, glm-4.7, gpt-5-nano, mimo-v2-pro-free
 - Agents: build, oracle, explore, null (missing `agent` key)
-- Null tokens, zero tokens, null cost, very high cost ($0.50)
+- Cost: 0.0 (free), $0.50 (high), NULL (missing)
+- Tokens: normal values, zeros, NULLs
 - Nested model JSON (`$.model.modelID`), error fields, timing metadata
+- Date range: Feb–May 2026 for date-filter testing
 
 ## MODULE-SPECIFIC ANTI-PATTERNS
 
-- Inline imports in `test_db.py` — `TestGetAgentBreakdown` et al. re-import their function inside the class
-- No parametrize — leads to method duplication (e.g., 4 date-filter methods instead of 1 parametrized test)
+- Inline imports in `test_db.py` — `TestGetAgentBreakdown` et al. re-import their function inside the class (20+ inline imports, while 9 functions are at module top-level — inconsistent hybrid)
+- Stale docstring in `test_db.py:1`: says "all 7 query functions" — actually 10+ query functions plus utilities
+- "Temp" test in `test_db.py:420-421` — `or len(data) == 0` clause lets it pass even when assertion fails, defeating test purpose
+- No parametrize — leads to method duplication (e.g., 5 date-filter methods instead of 1 parametrized test)
 - Hard-coded assertion counts (`assert total_messages == 21`) break when fixture changes
-- Stale comments: "not yet implemented" labels for features already implemented
-- Duplicate `import json` with `# noqa: F811` workaround in conftest.py
+- Stale comments in `test_routes.py:425,452`: "not yet implemented" for features already implemented (unified endpoint, backward-compat redirects)
+- Duplicate `import json` with `# noqa: F811` workaround in conftest.py — outer `import json` is dead code; only the inner `import json as _json` in `msg_data()` closure is needed

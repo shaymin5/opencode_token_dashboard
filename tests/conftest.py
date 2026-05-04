@@ -51,10 +51,10 @@ def _insert_fixture_data(conn: sqlite3.Connection) -> None:
     """Insert representative sample data covering edge cases.
 
     Projects:
-      p1 — D:\\gameboy\\project-navigator   (normal)
-      p2 — D:\\gameboy\\volume_balance      (normal)
-      p3 — /                                 (global)
-      p4 — NULL worktree                      (unknown)
+      p1 — /home/user/project-navigator      (normal, POSIX for cross-platform)
+      p2 — /home/user/volume_balance         (normal, POSIX for cross-platform)
+      p3 — /                                  (global)
+      p4 — NULL worktree                       (unknown)
 
     Sessions: 4 per project p1, 2 per others (10 total)
     Messages: ~21 total
@@ -63,8 +63,8 @@ def _insert_fixture_data(conn: sqlite3.Connection) -> None:
 
     # ── Projects ────────────────────────────────────────────────
     projects = [
-        ("p1", None, r"D:\gameboy\project-navigator"),
-        ("p2", None, r"D:\gameboy\volume_balance"),
+        ("p1", None, "/home/user/project-navigator"),
+        ("p2", None, "/home/user/volume_balance"),
         ("p3", None, "/"),
         ("p4", None, None),
     ]

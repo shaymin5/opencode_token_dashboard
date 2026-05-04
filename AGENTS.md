@@ -1,8 +1,8 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-05-02
-**Commit:** 4bfa660
-**Branch:** master
+**Generated:** 2026-05-04
+**Commit:** a3ed422
+**Branch:** main
 **Stack:** Python 3.13 + uv + FastAPI + SQLite (read-only) + ECharts
 
 ## OVERVIEW
@@ -24,8 +24,8 @@ opencode_token_dashboard/
 ├── tests/
 │   ├── __init__.py
 │   ├── conftest.py     # Test fixtures (21 messages, 10 sessions)
-│   ├── test_db.py      # 57 query tests
-│   └── test_routes.py  # 42 API route tests
+│   ├── test_db.py      # 68 query tests
+│   └── test_routes.py  # 49 API route tests
 ├── .sisyphus/          # Internal planning artifacts (dev journal — not project source)
 ├── pyproject.toml      # uv project config
 ├── AGENTS.md
@@ -40,7 +40,7 @@ opencode_token_dashboard/
 | API endpoints | `app/routes.py` | Unified `/api/data?view=...` dispatches to 10 views; 5 old endpoints redirect (307) |
 | Frontend | `app/templates/index.html` | Compact 2-column grid, 8 ECharts panels + 7 cards |
 | Template partials | `app/templates/partials/` | 10 files: `head`, `styles`, `header`, `cards`, `panels`, `scripts`, `js_utils`, `js_charts`, `js_renderers`, `js_app` |
-| Tests | `tests/test_db.py`, `tests/test_routes.py` | 57 unit + 42 integration = 99 total (class-based, no mock) |
+| Tests | `tests/test_db.py`, `tests/test_routes.py` | 68 unit + 49 integration = 117 total (class-based, no mock) |
 | Project config | `pyproject.toml` | uv-managed dependencies; no linting/formatting/CI configured |
 
 ## DATABASE SCHEMA (opencode.db)
@@ -112,9 +112,16 @@ Data fetching: Unified /api/data?view=... with per-panel loading/error states
 - **Path**: DB at `C:\Users\Shaymin\.local\share\opencode\opencode.db` (Windows); use env var or config
 - **uv**: Use `uv add` for deps, `uv run` for scripts, `uv sync` for install. No pip/venv.
 - **Frontend**: Server-rendered HTML with JS charting library. Avoid SPA frameworks.
-- **Test organization**: Class-based (34 classes), zero mocking, real SQLite temp DB per test, function-scoped fixtures
+- **Test organization**: Class-based (36 classes), zero mocking, real SQLite temp DB per test, function-scoped fixtures
 - **API dispatch**: String-based `globals().get(func_name)` dispatch in `routes.py:109` — fragile on rename
 - **Jinja2**: Raw `jinja2.Environment` (not Starlette's `Jinja2Templates`) — workaround for cache-key compatibility bug
+
+### Notable Absences
+
+- **No CI/CD**: No `.github/workflows/`, Makefile, Dockerfile, or any automation pipeline
+- **No linter/formatter**: No ruff, flake8, black, or pyproject.toml linting config — code style relies on developer discipline
+- **No pytest configuration**: No `pytest.ini` or `[tool.pytest.ini_options]` — runs on defaults
+- **No pre-commit hooks**: No `.pre-commit-config.yaml`
 
 ## TIMEZONE HANDLING
 
@@ -166,6 +173,13 @@ Requires `tzdata` pip package on Windows (no bundled IANA timezone DB).
 - No direct filesystem writes to the DB directory
 - No long-running queries without pagination (DB is ~385MB, 22k+ messages)
 - No SPA build tooling (keep it simple: one-page dashboard with embedded charts)
+- `globals().get(func_name)` dispatch in `routes.py:111` — fragile on function rename; 500 at runtime if DB function is renamed without updating `VIEW_DISPATCH`
+- Hardcoded Windows user path at `db.py:52` — `C:\Users\Shaymin\...` fails for anyone else if all other path resolution methods are unreachable
+- Tsinghua PyPI mirror set as default index in `pyproject.toml:20` — blocks `uv sync` for environments outside China
+- `_filter_token_messages()` (dead code at `db.py:94`) defined but never called; logic inlined in every query instead
+- `DIV_ZERO_GUARD` (dead code at `db.py:122`) — SQL snippet constant never referenced
+- Sync `sqlite3` called from `async def` routes (`routes.py:103`) — works via thread pool but mismatched signature
+- 5 near-identical 307 redirect handlers (`routes.py:154-217`) — DRY violation
 
 ## COMMANDS
 
@@ -173,7 +187,7 @@ Requires `tzdata` pip package on Windows (no bundled IANA timezone DB).
 uv sync                          # Install dependencies
 uv run python -m app.main        # Start dev server (port 20230)
 uv run python -m app.main --port 8888  # Custom port
-uv run pytest -v                 # Run all 99 tests
+uv run pytest -v                 # Run all 117 tests
 uv add fastapi uvicorn           # Add web framework
 ```
 

@@ -51,10 +51,13 @@ app/
 
 ## MODULE-SPECIFIC ANTI-PATTERNS
 
-- `globals().get(func_name)` dispatch at `routes.py:111` — fragile on function rename
+- `globals().get(func_name)` dispatch at `routes.py:111` — fragile on function rename; stores string names instead of `Callable` references
 - No Pydantic models — all params are raw strings, no response validation
-- Sync `sqlite3` called from `async def` routes — runs in FastAPI thread pool
-- 5 near-identical redirect handlers — DRY violation
+- Sync `sqlite3` called from `async def` routes — runs in FastAPI thread pool; declare routes `def` instead
+- 5 near-identical redirect handlers (`routes.py:154-217`) — DRY violation; single generic handler would suffice
 - `_coalesce_model()` underused — `get_tokens_by_model` and `get_cost_breakdown` miss nested model JSON
-- `_filter_token_messages()` exists but is never called (dead code)
+- `_filter_token_messages()` exists but is never called (dead code); logic inlined in every query
 - Hardcoded user path fallback in `get_db_path()` (line 52)
+- `print()` calls in production code (`main.py:39-45,91,102`) — should use `logging` module
+- Static mount uses fragile relative path (`main.py:53`: `"app/static"`) — use `Path(__file__).parent / "static"` instead
+- `parse_known_args()` in `_resolve_port()` (`main.py:70`) silently ignores unknown CLI args
