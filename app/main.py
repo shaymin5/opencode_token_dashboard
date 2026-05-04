@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import argparse
 import os
+import platform
+import subprocess
 import threading
 import webbrowser
 from contextlib import asynccontextmanager
@@ -71,11 +73,26 @@ def _resolve_port() -> int:
     return int(os.environ.get("PORT", "20230"))
 
 
+def _is_wsl() -> bool:
+    """Detect if running under Windows Subsystem for Linux."""
+    if platform.system() != "Linux":
+        return False
+    try:
+        with open("/proc/version") as f:
+            content = f.read().lower()
+            return "microsoft" in content or "wsl" in content
+    except FileNotFoundError:
+        return False
+
+
 def _open_browser(port: int) -> None:
     """Open the dashboard URL in the default browser after a short delay."""
     url = f"http://127.0.0.1:{port}"
     print(f"[startup] Opening browser at {url}")
-    webbrowser.open(url)
+    if _is_wsl():
+        subprocess.run(["cmd.exe", "/c", "start", url], check=False)
+    else:
+        webbrowser.open(url)
 
 
 def main() -> None:
